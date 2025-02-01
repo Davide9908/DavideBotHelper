@@ -1,7 +1,9 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+#workspace.xml
 # Rider ignored files
+modules.xml
 /modules.xml
 /projectSettingsUpdater.xml
 /contentModel.xml
