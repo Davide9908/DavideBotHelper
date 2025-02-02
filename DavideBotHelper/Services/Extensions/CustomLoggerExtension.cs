@@ -1,5 +1,7 @@
 ﻿
 using System;
+using JetBrains.Annotations;
+
 namespace DavideBotHelper.Services.Extensions{
 
 
@@ -24,7 +26,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogDebug(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Debug(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Debug(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Debug, eventId, exception, message, args);
         }
@@ -41,7 +43,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogDebug(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Debug(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Debug(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Debug, eventId, message, args);
         }
@@ -58,7 +60,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogDebug(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Debug(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Debug(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Debug, exception, message, args);
         }
@@ -74,7 +76,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogDebug("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Debug(this ILogger logger, string? message, params object?[] args)
+        public static void Debug(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Debug, message, args);
         }
@@ -94,7 +96,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogTrace(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Trace(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Trace(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Trace, eventId, exception, message, args);
         }
@@ -111,7 +113,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogTrace(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Trace(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Trace(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Trace, eventId, message, args);
         }
@@ -128,7 +130,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogTrace(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Trace(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Trace(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Trace, exception, message, args);
         }
@@ -144,7 +146,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogTrace("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Trace(this ILogger logger, string? message, params object?[] args)
+        public static void Trace(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Trace, message, args);
         }
@@ -164,7 +166,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogInformation(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Info(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Info(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Information, eventId, exception, message, args);
         }
@@ -181,7 +183,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogInformation(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Info(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Info(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Information, eventId, message, args);
         }
@@ -198,7 +200,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogInformation(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Info(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Info(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Information, exception, message, args);
         }
@@ -214,7 +216,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogInformation("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Info(this ILogger logger, string? message, params object?[] args)
+        public static void Info(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Information, message, args);
         }
@@ -234,7 +236,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogWarning(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Warning(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Warning(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Warning, eventId, exception, message, args);
         }
@@ -251,7 +253,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogWarning(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Warning(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Warning(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Warning, eventId, message, args);
         }
@@ -268,7 +270,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogWarning(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Warning(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Warning(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Warning, exception, message, args);
         }
@@ -284,7 +286,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogWarning("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Warning(this ILogger logger, string? message, params object?[] args)
+        public static void Warning(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Warning, message, args);
         }
@@ -304,7 +306,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogError(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Error(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Error(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Error, eventId, exception, message, args);
         }
@@ -321,7 +323,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogError(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Error(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Error(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Error, eventId, message, args);
         }
@@ -338,7 +340,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogError(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Error(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Error(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Error, exception, message, args);
         }
@@ -354,7 +356,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogError("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Error(this ILogger logger, string? message, params object?[] args)
+        public static void Error(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Error, message, args);
         }
@@ -374,7 +376,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogCritical(0, exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Critical(this ILogger logger, EventId eventId, Exception? exception, string? message, params object?[] args)
+        public static void Critical(this ILogger logger, EventId eventId, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Critical, eventId, exception, message, args);
         }
@@ -391,7 +393,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogCritical(0, "Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Critical(this ILogger logger, EventId eventId, string? message, params object?[] args)
+        public static void Critical(this ILogger logger, EventId eventId, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Critical, eventId, message, args);
         }
@@ -408,7 +410,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogCritical(exception, "Error while processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Critical(this ILogger logger, Exception? exception, string? message, params object?[] args)
+        public static void Critical(this ILogger logger, Exception? exception, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Critical, exception, message, args);
         }
@@ -424,7 +426,7 @@ namespace DavideBotHelper.Services.Extensions{
         /// logger.LogCritical("Processing request from {Address}", address)
         /// </code>
         /// </example>
-        public static void Critical(this ILogger logger, string? message, params object?[] args)
+        public static void Critical(this ILogger logger, [StructuredMessageTemplate]string? message, params object?[] args)
         {
             logger.Log(LogLevel.Critical, message, args);
         }
