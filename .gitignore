@@ -9,3 +9,5 @@ riderModule.iml
 .idea/.idea.DavideBotHelper/.idea/.name
 .idea
 .vs
+*.db
+*.log

@@ -18,7 +18,7 @@ public class ExcelMovimentiService
     private const int SpesaColumnNumber = 3;
     private const int DescrizioneSpesaColumnNumber = 4;
     private const int EntrataColumnNumber = 5;
-    private const int DescrizioneEntrataColumnNumber = 5;
+    private const int DescrizioneEntrataColumnNumber = 6;
     
     // private const uint GennaioSheetNumber = 1;
     // private const uint FebbraioSheetNumber = 2;
@@ -68,7 +68,7 @@ public class ExcelMovimentiService
             await package.LoadAsync(existingFile);
             
             int excelSheet = mese ?? today.Month; 
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[excelSheet];
+            using ExcelWorksheet worksheet = package.Workbook.Worksheets[excelSheet];
             
             int emptyCellRow = FindFirstEmptyCellRow(worksheet, SpesaColumnNumber);
             if (emptyCellRow == -1)
@@ -82,12 +82,20 @@ public class ExcelMovimentiService
 
             if (anno.HasValue && mese.HasValue && giorno.HasValue)
             {
-                DateTime data = new DateTime(anno.Value, mese.Value, giorno.Value);
+                DateTime data;
+                try
+                {
+                    data = new DateTime(anno.Value, mese.Value, giorno.Value);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    _log.Error("Errore nella generazione della data");
+                    return false;
+                }
+
                 worksheet.SetValue(emptyCellRow, DataColumnNumber, data);
             }
-            
             await package.SaveAsAsync(existingFile);
-            
         }
         catch (Exception ex)
         {
@@ -122,7 +130,7 @@ public class ExcelMovimentiService
             await package.LoadAsync(existingFile);
             
             int excelSheet = mese ?? today.Month; 
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[excelSheet];
+            using ExcelWorksheet worksheet = package.Workbook.Worksheets[excelSheet];
             
             int emptyCellRow = FindFirstEmptyCellRow(worksheet, EntrataColumnNumber);
             if (emptyCellRow == -1)
@@ -136,7 +144,16 @@ public class ExcelMovimentiService
 
             if (anno.HasValue && mese.HasValue && giorno.HasValue)
             {
-                DateTime data = new DateTime(anno.Value, mese.Value, giorno.Value);
+                DateTime data;
+                try
+                {
+                    data = new DateTime(anno.Value, mese.Value, giorno.Value);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    _log.Error("Errore nella generazione della data");
+                    return false;
+                }
                 worksheet.SetValue(emptyCellRow, DataColumnNumber, data);
             }
             

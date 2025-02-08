@@ -1,5 +1,6 @@
 
 using DavideBotHelper.Services;
+using Microsoft.AspNetCore.StaticFiles.Infrastructure;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Database;
@@ -17,6 +18,8 @@ file static class ServiceExtension
     {
         services.AddHostedService<StartupTask>();
         services.AddSingleton<TelegramBotService>();
-        services.AddSerilog( c=> c.WriteTo.Database(DBType.Sqlite,"Data Source=DavideBotHelper.db", "system_log",LogEventLevel.Verbose,false,1));
+        services.AddScoped<ExcelMovimentiService>();
+        services.AddSerilog( c=> c.WriteTo.Console()
+                .WriteTo.Database(DBType.Sqlite,"Data Source=DavideBotHelper.db", "system_log",LogEventLevel.Verbose,false,1));
     }
 }

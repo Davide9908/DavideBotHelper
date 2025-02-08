@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using DavideBotHelper.Services.Extensions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -16,8 +17,8 @@ public class TelegramBotService : IDisposable
     private Bot _bot;
 
     private const string StartCommando = "/start";
-    private const string AddSpesaCommando = "/aggiungiSpesa";
-    private const string AddEntrataCommando = "/aggiungiEntrata";
+    private const string AddSpesaCommando = "/aggiungispesa ";
+    private const string AddEntrataCommando = "/aggiungientrata ";
     private const char Separator = ',';
     
     public TelegramBotService(IConfiguration configuration, ILogger<TelegramBotService> log, IHostApplicationLifetime appLifetime, IServiceProvider serviceProvider)
@@ -66,39 +67,126 @@ public class TelegramBotService : IDisposable
         }
         else if (msg.Text.StartsWith(AddEntrataCommando))
         {
-            
+            await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
         }
         else
         {
-            await _bot.SendMessage(msg.Chat, $"Comando non riconosciuto", replyParameters: msg);
+            await _bot.SendMessage(msg.Chat, "Comando non riconosciuto", replyParameters: msg);
         }
 
     }
 
-    private async Task HandleAggiuntaSpesa(string rawMessage, (Chat, Message) request)
+    private async Task HandleAggiuntaSpesa(string rawMessage, (Chat Chat, Message Message) request)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var excelMovimentiService = scope.ServiceProvider.GetRequiredService<ExcelMovimentiService>();
         
+        var movimento = await BuildMovimento(rawMessage.Replace(AddSpesaCommando, string.Empty), request);
+        if (movimento is null)
+        {
+            return;
+        }
+        
+        bool movimentoSaveResult = await excelMovimentiService.AddMovimentoSpesa(movimento.Valore, movimento.Descrizione,
+            movimento.Anno, movimento.Mese, movimento.Giorno);
+
+        if (!movimentoSaveResult)
+        {
+            await _bot.SendMessage(request.Chat, "Non è stato possibile inserire il movimento, controllare i log per maggiori info", replyParameters: request.Message);
+        }
+        else
+        {
+            await _bot.SendMessage(request.Chat, "Spesa aggiunta.", replyParameters: request.Message);
+        }
+    }
+    
+    private async Task HandleAggiuntaEntrata(string rawMessage, (Chat Chat, Message Message) request)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var excelMovimentiService = scope.ServiceProvider.GetRequiredService<ExcelMovimentiService>();
+        
+        var movimento = await BuildMovimento(rawMessage.Replace(AddEntrataCommando, string.Empty), request);
+        if (movimento is null)
+        {
+            return;
+        }
+
+        _ = movimento.RemoveGiorno();
+        bool movimentoSaveResult = await excelMovimentiService.AddMovimentoEntrata(movimento.Valore, movimento.Descrizione,
+            movimento.Anno, movimento.Mese, movimento.Giorno);
+
+        if (!movimentoSaveResult)
+        {
+            await _bot.SendMessage(request.Chat, "Non è stato possibile inserire il movimento, controllare i log per maggiori info", replyParameters: request.Message);
+        }
+        else
+        {
+            await _bot.SendMessage(request.Chat, "Entrata aggiunta.", replyParameters: request.Message);
+        }
     }
 
 
     private async Task<MovimentoDetail?> BuildMovimento(string textRequest, (Chat Chat, Message Message) request)
     {
         string[] parts = textRequest.Split(Separator);
-        if (parts.Length <= 1)
+        if (parts.Length <= 1 || parts.Length > 5)
         {
             await _bot.SendMessage(request.Chat, "La richiesta non è in un formato corretto. Il corretto formato è [valore],[descrizione],[anno?],[mese?],[giorno?]\n" +
                                                  "I decimali del valore sono separati con il punto", replyParameters: request.Message);
             return null;
         }
+        NumberFormatInfo nfi = new NumberFormatInfo();
+        nfi.NumberDecimalSeparator = ".";
 
-        if (!decimal.TryParse(parts[0], out var valore))
+        if (!decimal.TryParse(parts[0], NumberStyles.Currency, nfi, out var valore))
         {
             await _bot.SendMessage(request.Chat, $"Non è stato possibile fare il parse del valore {parts[0]}", replyParameters: request.Message);
             return null;
         }
+        string descrizione = parts[1];
+
+        int? anno = null;
+        int? mese = null;
+        int? giorno = null;
         
+        if (parts.Length >= 3)
+        {
+            if (int.TryParse(parts[2], out var annoOutput))
+            {
+                anno = annoOutput;
+            }
+            else
+            {
+                await _bot.SendMessage(request.Chat, $"Non è stato possibile fare il parse del valore {parts[2]}", replyParameters: request.Message);
+                return null;
+            }
+            if (parts.Length >= 4)
+            {
+                if (int.TryParse(parts[3], out var meseOutput))
+                {
+                    mese = meseOutput;
+                }
+                else
+                {
+                    await _bot.SendMessage(request.Chat, $"Non è stato possibile fare il parse del valore {parts[3]}", replyParameters: request.Message);
+                    return null;
+                }
+                if (parts.Length == 5)
+                {
+                    if (int.TryParse(parts[4], out var giornoOutput))
+                    {
+                        giorno = giornoOutput;
+                    }
+                    else
+                    {
+                        await _bot.SendMessage(request.Chat, $"Non è stato possibile fare il parse del valore {parts[4]}", replyParameters: request.Message);
+                        return null;
+                    }
+                }
+            }
+        }
         
-        MovimentoDetail movimentoDetail = new MovimentoDetail(valore);
+        return new MovimentoDetail(valore, descrizione, anno, mese, giorno);
     }
     
     private async Task Client_OnOther(TL.IObject arg)
@@ -151,6 +239,13 @@ public class TelegramBotService : IDisposable
             Anno = anno;
             Mese = mese;
             Giorno = giorno;
+        }
+
+        public int? RemoveGiorno()
+        {
+            var returnValue = Giorno;
+            Giorno = null;
+            return returnValue;
         }
     }
 }
