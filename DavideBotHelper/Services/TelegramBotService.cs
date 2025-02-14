@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Text;
 using DavideBotHelper.Services.Extensions;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using WTelegram;
@@ -15,10 +16,13 @@ public class TelegramBotService : IDisposable
     private readonly IServiceProvider _serviceProvider;
     private bool _disposedValue;
     private Bot _bot;
+    private static bool addSpesaRequested;
+    private static bool addEntrataRequested;
 
-    private const string StartCommando = "/start";
-    private const string AddSpesaCommando = "/aggiungispesa ";
-    private const string AddEntrataCommando = "/aggiungientrata ";
+    private const string StartComando = "/start";
+    private const string AddSpesaComando = "/aggiungispesa";
+    private const string AddEntrataComando = "/aggiungientrata";
+    private const string AnnullaComando = "/annulla";
     private const char Separator = ',';
     
     public TelegramBotService(IConfiguration configuration, ILogger<TelegramBotService> log, IHostApplicationLifetime appLifetime, IServiceProvider serviceProvider)
@@ -56,23 +60,59 @@ public class TelegramBotService : IDisposable
             return;
         }
 
-        if (msg.Text == StartCommando)
+        switch (msg.Text)
         {
-            return;
+            case StartComando:
+                break;
+            case AddSpesaComando:
+                addSpesaRequested = true;
+                addEntrataRequested = false;
+                await _bot.SendMessage(msg.Chat, "Inserisci la spesa da aggiungere. Invia /annulla per annullare.", replyParameters: msg);
+                break;
+            case AddEntrataComando:
+                addSpesaRequested = false; 
+                addEntrataRequested = true;
+                await _bot.SendMessage(msg.Chat, "Inserisci l'entrata da aggiungere. Invia /annulla per annullare.", replyParameters: msg);
+                break;
+            case AnnullaComando:
+                addEntrataRequested = false;
+                addSpesaRequested = false;
+                await _bot.SendMessage(msg.Chat, "Comando precedente annullato!", replyParameters: msg);
+                break;
+            default:
+                if (addSpesaRequested)
+                {
+                    await HandleAggiuntaSpesa(msg.Text, (msg.Chat, msg));
+                    addSpesaRequested = false;
+                    break;
+                }
+                if (addEntrataRequested)
+                {
+                    await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
+                    addEntrataRequested = false;
+                    break;
+                }
+                await _bot.SendMessage(msg.Chat, "Comando non riconosciuto.", replyParameters: msg);
+                break;
         }
 
-        if (msg.Text.StartsWith(AddSpesaCommando))
-        {
-            await HandleAggiuntaSpesa(msg.Text, (msg.Chat, msg));
-        }
-        else if (msg.Text.StartsWith(AddEntrataCommando))
-        {
-            await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
-        }
-        else
-        {
-            await _bot.SendMessage(msg.Chat, "Comando non riconosciuto", replyParameters: msg);
-        }
+        // if (msg.Text == StartComando)
+        // {
+        //     return;
+        // }
+        //
+        // if (msg.Text.StartsWith(AddSpesaComando))
+        // {
+        //     await HandleAggiuntaSpesa(msg.Text, (msg.Chat, msg));
+        // }
+        // else if (msg.Text.StartsWith(AddEntrataComando))
+        // {
+        //     await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
+        // }
+        // else
+        // {
+        //     await _bot.SendMessage(msg.Chat, "Comando non riconosciuto", replyParameters: msg);
+        // }
 
     }
 
@@ -81,7 +121,7 @@ public class TelegramBotService : IDisposable
         using var scope = _serviceProvider.CreateScope();
         var excelMovimentiService = scope.ServiceProvider.GetRequiredService<ExcelMovimentiService>();
         
-        var movimento = await BuildMovimento(rawMessage.Replace(AddSpesaCommando, string.Empty), request);
+        var movimento = await BuildMovimento(rawMessage, request);
         if (movimento is null)
         {
             return;
@@ -105,7 +145,7 @@ public class TelegramBotService : IDisposable
         using var scope = _serviceProvider.CreateScope();
         var excelMovimentiService = scope.ServiceProvider.GetRequiredService<ExcelMovimentiService>();
         
-        var movimento = await BuildMovimento(rawMessage.Replace(AddEntrataCommando, string.Empty), request);
+        var movimento = await BuildMovimento(rawMessage, request);
         if (movimento is null)
         {
             return;
