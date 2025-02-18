@@ -23,6 +23,7 @@ public class TelegramBotService : IDisposable
     private const string AddSpesaComando = "/aggiungispesa";
     private const string AddEntrataComando = "/aggiungientrata";
     private const string AnnullaComando = "/annulla";
+    private const string Ping = "/ping";
     private const char Separator = ',';
     
     public TelegramBotService(IConfiguration configuration, ILogger<TelegramBotService> log, IHostApplicationLifetime appLifetime, IServiceProvider serviceProvider)
@@ -55,6 +56,7 @@ public class TelegramBotService : IDisposable
     
     private async Task OnMessage(Message msg, UpdateType type)
     {
+        _log.Info("Message {message} received from {username}", msg.Text, msg.From?.Username);
         if (msg.From is null || msg.Text is null || msg.From.Id != 38076310 || msg.From.Username != "DavChi99")
         {
             return;
@@ -78,6 +80,9 @@ public class TelegramBotService : IDisposable
                 addEntrataRequested = false;
                 addSpesaRequested = false;
                 await _bot.SendMessage(msg.Chat, "Comando precedente annullato!", replyParameters: msg);
+                break;
+            case Ping:
+                await _bot.SendMessage(msg.Chat, "Pong!", replyParameters: msg);
                 break;
             default:
                 if (addSpesaRequested)
