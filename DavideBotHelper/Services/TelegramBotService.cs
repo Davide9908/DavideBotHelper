@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Net.Sockets;
 using System.Text;
 using DavideBotHelper.Services.Extensions;
 using Telegram.Bot;
@@ -242,7 +243,20 @@ public class TelegramBotService : IDisposable
             _log.Error(message: "Fatal reactor error", exception: err.Exception);
             _bot.Dispose();
             BotSetup();
-            await Connect();
+            bool retry = true;
+            int tryCount = 1;
+            while (retry)
+            {
+                try
+                {
+                    await Connect();
+                    retry = false;
+                }
+                catch (SocketException se)
+                {
+                    _log.Error("Unable to connect, retrying ({retryCount})", tryCount, se);
+                }
+            }
         }
     }
     
