@@ -234,6 +234,11 @@ public class TelegramBotService : IDisposable
         
         return new MovimentoDetail(valore, descrizione, anno, mese, giorno);
     }
+
+    public async Task<Message> SendMessage(ChatId chat, string message, ReplyParameters? replyParameters = default)
+    {
+        return await _bot.SendMessage(chat, message, replyParameters:replyParameters);
+    }
     
     private async Task Client_OnOther(TL.IObject arg)
     {

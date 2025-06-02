@@ -1,4 +1,5 @@
 
+using Coravel;
 using DavideBotHelper.Services;
 using Microsoft.AspNetCore.StaticFiles.Infrastructure;
 using Serilog;
@@ -16,10 +17,12 @@ file static class ServiceExtension
 {
     public static void AddServices(this IServiceCollection services)
     {
-        services.AddHostedService<StartupTask>();
-        services.AddSingleton<TelegramBotService>();
-        services.AddScoped<ExcelMovimentiService>();
-        services.AddSerilog( c=> c.WriteTo.Console()
+        services.AddHostedService<StartupTask>()
+            .AddSingleton<TelegramBotService>()
+            .AddScoped<ExcelMovimentiService>()
+            .AddTransient<PowerAlertTask>()
+            .AddScheduler()
+            .AddSerilog( c=> c.WriteTo.Console()
                 .WriteTo.Database(DBType.Sqlite,"Data Source=DavideBotHelper.db", "system_log",LogEventLevel.Verbose,false,1));
     }
 }
