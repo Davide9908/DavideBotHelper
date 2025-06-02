@@ -22,7 +22,8 @@ public class StartupTask : BackgroundService
         _serviceProvider.UseScheduler(scheduler =>
             scheduler.Schedule<PowerAlertTask>()
                 .EverySecond()
-                .PreventOverlapping(nameof(PowerAlertTask)));
+                .PreventOverlapping(nameof(PowerAlertTask)))
+            .LogScheduledTaskProgress();;
 
         // while (!stoppingToken.IsCancellationRequested)
         // {

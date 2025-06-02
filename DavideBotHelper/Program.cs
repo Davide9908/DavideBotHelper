@@ -22,7 +22,7 @@ file static class ServiceExtension
             .AddScoped<ExcelMovimentiService>()
             .AddTransient<PowerAlertTask>()
             .AddScheduler()
-            .AddSerilog( c=> c.WriteTo.Console()
+            .AddSerilog( c=> c.MinimumLevel.Debug().WriteTo.Console()
                 .WriteTo.Database(DBType.Sqlite,"Data Source=DavideBotHelper.db", "system_log",LogEventLevel.Verbose,false,1));
     }
 }
