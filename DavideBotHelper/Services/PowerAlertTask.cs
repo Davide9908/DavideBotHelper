@@ -8,8 +8,8 @@ namespace DavideBotHelper.Services;
 
 public class PowerAlertTask : IInvocable
 {
-    private const string UpsFlag = "/var/upsStatus/upsOnBattery";
-    private const string UpsLock = "/var/upsStatus/botHelper.lock";
+    private const string UpsFlag = "/mnt/upsStatus/upsOnBattery";
+    private const string UpsLock = "/mnt/upsStatus/botHelper.lock";
     private readonly ILogger<PowerAlertTask> _logger;
     private readonly TelegramBotService _telegramBotService;
 
