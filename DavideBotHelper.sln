@@ -12,5 +12,6 @@ Global
 		{BE4AD6F1-C4F1-47B0-A904-E4F48D349C92}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE4AD6F1-C4F1-47B0-A904-E4F48D349C92}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE4AD6F1-C4F1-47B0-A904-E4F48D349C92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE4AD6F1-C4F1-47B0-A904-E4F48D349C92}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

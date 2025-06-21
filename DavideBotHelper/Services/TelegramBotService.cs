@@ -269,23 +269,17 @@ public class TelegramBotService : IDisposable
     {
         Dispose();
     }
-
-    protected virtual void Dispose(bool disposing)
+    
+    public void Dispose()
     {
         if (!_disposedValue)
         {
-            if (disposing)
-            {
-                _bot.Dispose();
-            }
+            _bot.OnMessage -= OnMessage;
+            _bot.Client.OnOther -= Client_OnOther;
+            _bot.Dispose();
+        
             _disposedValue = true;
         }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     private  record MovimentoDetail
