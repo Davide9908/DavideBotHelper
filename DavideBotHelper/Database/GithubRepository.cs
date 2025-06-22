@@ -27,4 +27,7 @@ public class GithubRepository
     
     [Column("version_regex"), MaxLength(100)]
     public string? VersionRegexPattern { get; set; }
+    
+    [Column("flag_reset_release_cache")]
+    public bool ResetReleaseCache { get; set; } = false;
 }

@@ -27,6 +27,8 @@ file static class ServiceExtension
     {
         services.AddHostedService<StartupTask>()
             .AddDbContext<DavideBotDbContext>()
+            .AddScoped<GithubApiHttpClientService>()
+            .AddScoped<GithubReleasesCheckerTask>()
             .AddSingleton<TelegramBotService>()
             .AddScoped<ExcelMovimentiService>()
             .AddTransient<PowerAlertTask>()
@@ -42,6 +44,10 @@ file static class ServiceExtension
                     
                 serilogConfig.WriteTo.Database(DBType.PostgreSQL, connectionString, "system_log",
                         LogEventLevel.Debug, false, 1);
+            })
+            .AddHttpClient<GithubApiHttpClientService>(options =>
+            {
+                options.DefaultRequestHeaders.UserAgent.TryParseAdd("dotNET HTTP Client/1.0 personal bot agent");
             });
     }
 }
