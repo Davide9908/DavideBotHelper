@@ -1,5 +1,6 @@
 
 using Coravel;
+using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services;
 using Microsoft.AspNetCore.StaticFiles.Infrastructure;
 using Serilog;
@@ -8,21 +9,39 @@ using Serilog.Sinks.Database;
 using DBType = ASql.ASqlManager.DBType;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddServices();
+
+builder.Services.AddServices(builder.Configuration);
 
 var host = builder.Build();
+using (var scope = host.Services.CreateScope())
+using (var dbContext = scope.ServiceProvider.GetRequiredService<DavideBotDbContext>())
+{
+    dbContext.Migrate();
+}
+
 host.Run();
 
 file static class ServiceExtension
 {
-    public static void AddServices(this IServiceCollection services)
+    public static void AddServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHostedService<StartupTask>()
+            .AddDbContext<DavideBotDbContext>()
             .AddSingleton<TelegramBotService>()
             .AddScoped<ExcelMovimentiService>()
             .AddTransient<PowerAlertTask>()
             .AddScheduler()
-            .AddSerilog( c=> c.MinimumLevel.Debug().WriteTo.Console()
-                .WriteTo.Database(DBType.Sqlite,"Data Source=DavideBotHelper.db", "system_log",LogEventLevel.Verbose,false,1));
+            .AddSerilog( serilogConfig=>
+            {
+                serilogConfig = serilogConfig.MinimumLevel.Debug().WriteTo.Console();
+                string? connectionString = configuration.GetConnectionString("DavideBotDB");
+                if (connectionString is null)
+                {
+                    throw new ApplicationException("Could not find connection string");
+                }
+                    
+                serilogConfig.WriteTo.Database(DBType.PostgreSQL, connectionString, "system_log",
+                        LogEventLevel.Debug, false, 1);
+            });
     }
 }
