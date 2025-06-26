@@ -1,13 +1,10 @@
-﻿using System.Reflection;
-using Coravel.Invocable;
-using DavideBotHelper.Services.Extensions;
+﻿using Coravel.Invocable;
 using Telegram.Bot.Types;
-using WTelegram.Types;
 using Message = Telegram.Bot.Types.Message;
 
-namespace DavideBotHelper.Services;
+namespace DavideBotHelper.Services.Tasks;
 
-public class PowerAlertTask : IInvocable
+public class PowerAlertTask : TransactionalTask
 {
     
     // private const string UpsFlag = "G:\\test\\upsOnBattery";
@@ -26,7 +23,8 @@ public class PowerAlertTask : IInvocable
         _telegramBotService = telegramBotService;
     }
 
-    public async Task Invoke()
+
+    protected override async Task Run()
     {
         try
         {
@@ -98,7 +96,6 @@ public class PowerAlertTask : IInvocable
             _log.LogError(ex, "Error on task");
         }
     }
-    
 }
 
 internal static class PowerAlertFlag

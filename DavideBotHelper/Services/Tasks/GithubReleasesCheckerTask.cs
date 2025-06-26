@@ -2,67 +2,54 @@
 using Coravel.Invocable;
 using DavideBotHelper.Database;
 using DavideBotHelper.Database.Context;
+using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace DavideBotHelper.Services;
+namespace DavideBotHelper.Services.Tasks;
 
-public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocable
+public sealed class GithubReleasesCheckerTask : TransactionalTask
 {
     private readonly ILogger<GithubReleasesCheckerTask> _log;
-    private readonly DavideBotDbContext _dbcontext;
+    private readonly DavideBotDbContext _dbContext;
     private readonly GithubApiHttpClientService _apiClient;
-    private CancellationToken _cancellationToken;
-    private const string DeafultRegPattern = ".*";
-
-    public CancellationToken CancellationToken
-    {
-        get => _cancellationToken;
-        set => _cancellationToken = value;
-    }
+    private const string DefaultRegPattern = ".*";
 
     public GithubReleasesCheckerTask(ILogger<GithubReleasesCheckerTask> log, DavideBotDbContext dbContext,
         GithubApiHttpClientService apiClient)
     {
         _log = log;
-        _dbcontext = dbContext;
+        _dbContext = dbContext;
         _apiClient = apiClient;
     }
 
-    public async Task Invoke()
+    protected override async Task Run()
     {
-        try
-        {
-            await Run();
-        }
-        catch (OperationCanceledException oce)
-        {
-            _log.Warning(oce, "Operation cancelled");
-        }
-        catch (Exception ex)
-        {
-            _log.Error(ex, "Error in GithubReleasesCheckerTask");
-        }
-    }
-
-    private async Task Run()
-    {
-        var repos = await _dbcontext.GithubRepositories.Where(r => r.IsEnabled).ToListAsync(_cancellationToken);
+        var repos = await _dbContext.GithubRepositories.Where(r => r.IsEnabled).ToListAsync(_ct);
 
         var tasks = new Dictionary<string, Task<List<GithubReleases>>>(repos.Count);
 
         foreach (var repo in repos)
         {
-            tasks.Add(repo.Name, _apiClient.GetGHRepositoryReleases(repo.RepositoryUrl, _cancellationToken));
+            tasks.Add(repo.Name, _apiClient.GetGHRepositoryReleases(repo.RepositoryUrl, _ct));
         }
 
-        await Task.WhenAll(tasks.Values);
+        try
+        {
+            await Task.WhenAll(tasks.Values);
+        }
+        catch (Exception e)
+        {
+            
+        }
+        
+        List<RepositoryRelease> releasesToInsert = [];
 
         foreach (var repo in repos)
         {
             var task = tasks[repo.Name];
-            var tagRegex = new Regex(repo.TagRegexPattern ?? DeafultRegPattern);
-            var versionRegex = new Regex(repo.VersionRegexPattern ?? DeafultRegPattern, RegexOptions.Compiled);
+            var tagRegex = new Regex(repo.TagRegexPattern ?? DefaultRegPattern);
+            var versionRegex = new Regex(repo.VersionRegexPattern ?? DefaultRegPattern, RegexOptions.Compiled);
 
             if (task.IsFaulted)
             {
@@ -80,25 +67,39 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
                 return;
             }
 
-            RepositoryRelease lastRelease;
+            List<RepositoryRelease> releaseToInsertPart;
             if (repo.ResetReleaseCache)
             {
-                lastRelease = await ResetReleasesCache(repo, releases, versionRegex);
+                releaseToInsertPart = await ResetReleasesCache(repo, releases, versionRegex);
             }
             else
             {
-                lastRelease = await AddAndGetLastRelease(repo, releases, versionRegex, _cancellationToken);
+                releaseToInsertPart = await AddAndGetLastRelease(repo, releases, versionRegex, _ct);
             }
+
+            releasesToInsert.AddRange(releaseToInsertPart);
+        }
+        
+        if (releasesToInsert.Any())
+        {
+            await _dbContext.RepositoryReleases.AddRangeAsync(releasesToInsert, CancellationToken.None);
+            _ = await _dbContext.SaveChangesAsync(CancellationToken.None);
             
         }
+        else
+        {
+            _log.Debug("Nessuna release da scaricare");
+        }
+        
+        
     }
 
     /// <returns>The last release of the repository according to regex</returns>
-    private async Task<RepositoryRelease> ResetReleasesCache(GithubRepository repo, List<GithubReleases> releasesList,
+    private async Task<List<RepositoryRelease>> ResetReleasesCache(GithubRepository repo, List<GithubReleases> releasesList,
         Regex versionRegex)
     {
-        await _dbcontext.RepositoryReleases
-            .Where(r => r.RepositoryId == repo.Id)
+        await _dbContext.RepositoryReleases
+            .Where(r => r.RepositoryId == repo.RepositoryId)
             .ExecuteDeleteAsync(CancellationToken.None);
 
         List<RepositoryRelease> repositoryReleases = [];
@@ -107,8 +108,9 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
             var repoRelease = new RepositoryRelease()
             {
                 AddedAt = DateTime.Now,
-                RepositoryId = repo.Id,
-                Version = release.TagNameNoV
+                RepositoryId = repo.RepositoryId,
+                Version = release.TagNameNoV,
+                RequireDownload = false
             };
 
             var asset = release.Assets.FirstOrDefault(a => versionRegex.IsMatch(a.Name));
@@ -128,17 +130,17 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
             repositoryReleases.Add(repoRelease);
         }
 
-        await _dbcontext.RepositoryReleases.AddRangeAsync(repositoryReleases, CancellationToken.None);
-        await _dbcontext.SaveChangesAsync(CancellationToken.None);
+        return repositoryReleases;
+        // await _dbcontext.RepositoryReleases.AddRangeAsync(repositoryReleases, CancellationToken.None);
+        // await _dbcontext.SaveChangesAsync(CancellationToken.None);
 
-        return repositoryReleases.OrderByDescending(r => r.Version).First();
     }
 
-    private async Task<RepositoryRelease> AddAndGetLastRelease(GithubRepository repo, List<GithubReleases> releasesList,
+    private async Task<List<RepositoryRelease>> AddAndGetLastRelease(GithubRepository repo, List<GithubReleases> releasesList,
         Regex versionRegex, CancellationToken ct)
     {
-        var lastDbReleaseNumber = await _dbcontext.RepositoryReleases
-            .Where(r => r.RepositoryId == repo.Id)
+        var lastDbReleaseNumber = await _dbContext.RepositoryReleases
+            .Where(r => r.RepositoryId == repo.RepositoryId)
             .Select(r => r.Version)
             .OrderByDescending(version => version)
             .FirstOrDefaultAsync(ct);
@@ -150,8 +152,9 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
             var repoRelease = new RepositoryRelease()
             {
                 AddedAt = DateTime.Now,
-                RepositoryId = repo.Id,
-                Version = release.TagNameNoV
+                RepositoryId = repo.RepositoryId,
+                Version = release.TagNameNoV,
+                RequireDownload = true
             };
 
             var asset = release.Assets.FirstOrDefault(a => versionRegex.IsMatch(a.Name));
@@ -160,14 +163,14 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
                 _log.Warning(
                     "Repository {repo}, release {release} - Non sono riuscito a recuperare l'asset secondo la regex della versione, i dati specifici dell'asset non verranno caricati",
                     repo.Name, release.Name);
-                return repoRelease;
+                return [repoRelease];
             }
 
             repoRelease.DownloadUrl = asset.Url;
             repoRelease.Size = asset.Size;
             repoRelease.Data = null;
             repoRelease.IsCompressed = false;
-            return repoRelease;
+            return [repoRelease];
         }
 
         var releasesToAdd = releasesList.Where(rl => lastDbReleaseNumber.CompareTo(rl.TagNameNoV) < 0).ToList();
@@ -178,8 +181,9 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
             var repoRelease = new RepositoryRelease()
             {
                 AddedAt = DateTime.Now,
-                RepositoryId = repo.Id,
-                Version = release.TagNameNoV
+                RepositoryId = repo.RepositoryId,
+                Version = release.TagNameNoV,
+                RequireDownload = false
             };
 
             var asset = release.Assets.FirstOrDefault(a => versionRegex.IsMatch(a.Name));
@@ -199,10 +203,12 @@ public sealed class GithubReleasesCheckerTask : IInvocable, ICancellableInvocabl
             repositoryReleases.Add(repoRelease);
         }
         
-        await _dbcontext.RepositoryReleases.AddRangeAsync(repositoryReleases, CancellationToken.None);
-        await _dbcontext.SaveChangesAsync(CancellationToken.None);
-
-        return repositoryReleases.OrderByDescending(r => r.Version).First();
+        //Faccio scaricare solo l'ultimo per ordine di versione
+        repositoryReleases.OrderByDescending(r => r.Version).First().RequireDownload = true;
+        return repositoryReleases;
+        
+        // await _dbcontext.RepositoryReleases.AddRangeAsync(repositoryReleases, CancellationToken.None);
+        // await _dbcontext.SaveChangesAsync(CancellationToken.None);
 
     }
 }

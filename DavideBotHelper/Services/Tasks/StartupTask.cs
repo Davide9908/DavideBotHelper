@@ -1,7 +1,7 @@
 using Coravel;
 using DavideBotHelper.Services.Extensions;
 
-namespace DavideBotHelper.Services;
+namespace DavideBotHelper.Services.Tasks;
 
 public class StartupTask : BackgroundService
 {

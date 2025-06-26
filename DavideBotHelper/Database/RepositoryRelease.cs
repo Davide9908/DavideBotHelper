@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using DavideBotHelper.Services;
+using DavideBotHelper.Services.ClassesAndUtilities;
 
 namespace DavideBotHelper.Database;
 
@@ -8,7 +9,7 @@ namespace DavideBotHelper.Database;
 public class RepositoryRelease
 {
     [Column("release_id"), Key]
-    public int Id { get; init; }
+    public int AssetId { get; init; }
     
     [Column("repository_id"), ForeignKey(nameof(GithubRepository)), Required]
     public int RepositoryId { get; init; }
@@ -31,6 +32,12 @@ public class RepositoryRelease
     
     [Column("is_compressed")]
     public bool IsCompressed { get; set; }
+    
+    [Column("require_download")]
+    public bool RequireDownload { get; set; }
+    
+    [Column("to_send")]
+    public bool ToSend { get; set; }
     
     [Column("added_at")]
     public DateTime? AddedAt { get; set; }

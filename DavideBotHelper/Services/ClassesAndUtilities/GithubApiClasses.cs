@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DavideBotHelper.Services;
+namespace DavideBotHelper.Services.ClassesAndUtilities;
 
 
 #pragma warning disable CS8618

@@ -8,7 +8,7 @@ namespace DavideBotHelper.Database;
 public class GithubRepository
 {
     [Column("repo_id"), Key]
-    public int Id { get; init; }
+    public int RepositoryId { get; init; }
     
     [Column("name"), MaxLength(60), Required]
     public required string Name { get; init; }

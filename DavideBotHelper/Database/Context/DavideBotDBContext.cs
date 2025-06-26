@@ -22,6 +22,8 @@ public class DavideBotDbContext : DbContext
     {
         modelBuilder.Entity<RepositoryRelease>().Property(c => c.Data).IsRequired(false);
         modelBuilder.Entity<RepositoryRelease>().Property(c => c.AddedAt).IsRequired(false);
+        modelBuilder.Entity<RepositoryRelease>().Property(c => c.RequireDownload).HasDefaultValue(false);
+        modelBuilder.Entity<RepositoryRelease>().Property(c => c.ToSend).HasDefaultValue(false);
     }
     
     public DbSet<GithubRepository> GithubRepositories { get; set; }
