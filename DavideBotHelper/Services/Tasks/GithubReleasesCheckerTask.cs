@@ -5,6 +5,7 @@ using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Telegram.Bot.Types;
 
 namespace DavideBotHelper.Services.Tasks;
 
@@ -14,13 +15,16 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
     private readonly DavideBotDbContext _dbContext;
     private readonly GithubApiHttpClientService _apiClient;
     private const string DefaultRegPattern = ".*";
+    private readonly TelegramBotService _telegramBotService;
+    private readonly ChatId _chatId = new ChatId(38076310);
 
     public GithubReleasesCheckerTask(ILogger<GithubReleasesCheckerTask> log, DavideBotDbContext dbContext,
-        GithubApiHttpClientService apiClient)
+        GithubApiHttpClientService apiClient, TelegramBotService telegramBotService) : base(log, dbContext)
     {
         _log = log;
         _dbContext = dbContext;
         _apiClient = apiClient;
+        _telegramBotService = telegramBotService;
     }
 
     protected override async Task Run()
@@ -38,7 +42,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
         {
             await Task.WhenAll(tasks.Values);
         }
-        catch (Exception e)
+        catch (Exception e) //evito che WhenAll rilanci l'eccezione del/dei task che fallisce, le gestisco io separatamente
         {
             
         }
@@ -71,6 +75,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
             if (repo.ResetReleaseCache)
             {
                 releaseToInsertPart = await ResetReleasesCache(repo, releases, versionRegex);
+                repo.ResetReleaseCache = false;
             }
             else
             {
@@ -78,6 +83,10 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
             }
 
             releasesToInsert.AddRange(releaseToInsertPart);
+            if (releaseToInsertPart.Any(r => r.RequireDownload))
+            {
+                await _telegramBotService.SendMessage(_chatId, $"Trovata una release da scaricare. Repo: {repo.Name}");
+            }
         }
         
         if (releasesToInsert.Any())
@@ -107,7 +116,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
         {
             var repoRelease = new RepositoryRelease()
             {
-                AddedAt = DateTime.Now,
+                AddedAt = DateTime.UtcNow,
                 RepositoryId = repo.RepositoryId,
                 Version = release.TagNameNoV,
                 RequireDownload = false
@@ -123,6 +132,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
                 continue;
             }
 
+            repoRelease.FileName = asset.Name;
             repoRelease.DownloadUrl = asset.Url;
             repoRelease.Size = asset.Size;
             repoRelease.Data = null;
@@ -151,7 +161,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
             var release = releasesList.First();
             var repoRelease = new RepositoryRelease()
             {
-                AddedAt = DateTime.Now,
+                AddedAt = DateTime.UtcNow,
                 RepositoryId = repo.RepositoryId,
                 Version = release.TagNameNoV,
                 RequireDownload = true
@@ -166,6 +176,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
                 return [repoRelease];
             }
 
+            repoRelease.FileName = asset.Name;
             repoRelease.DownloadUrl = asset.Url;
             repoRelease.Size = asset.Size;
             repoRelease.Data = null;
@@ -180,7 +191,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
         {
             var repoRelease = new RepositoryRelease()
             {
-                AddedAt = DateTime.Now,
+                AddedAt = DateTime.UtcNow,
                 RepositoryId = repo.RepositoryId,
                 Version = release.TagNameNoV,
                 RequireDownload = false
@@ -196,6 +207,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
                 continue;
             }
 
+            repoRelease.FileName = asset.Name;
             repoRelease.DownloadUrl = asset.Url;
             repoRelease.Size = asset.Size;
             repoRelease.Data = null;
@@ -204,7 +216,11 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
         }
         
         //Faccio scaricare solo l'ultimo per ordine di versione
-        repositoryReleases.OrderByDescending(r => r.Version).First().RequireDownload = true;
+        if (repositoryReleases.Count > 0)
+        {
+            repositoryReleases.OrderByDescending(r => r.Version).First().RequireDownload = true;
+        }
+
         return repositoryReleases;
         
         // await _dbcontext.RepositoryReleases.AddRangeAsync(repositoryReleases, CancellationToken.None);

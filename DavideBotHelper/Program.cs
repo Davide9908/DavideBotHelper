@@ -2,6 +2,7 @@
 using Coravel;
 using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services;
+using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Tasks;
 using Serilog;
 using Serilog.Events;
@@ -29,6 +30,8 @@ file static class ServiceExtension
             .AddDbContext<DavideBotDbContext>()
             .AddScoped<GithubApiHttpClientService>()
             .AddScoped<GithubReleasesCheckerTask>()
+            .AddScoped<GithubReleaseDownloadTask>()
+            .AddScoped<SendReleaseAssetTask>()
             .AddSingleton<TelegramBotService>()
             .AddScoped<ExcelMovimentiService>()
             .AddTransient<PowerAlertTask>()
@@ -47,7 +50,8 @@ file static class ServiceExtension
             })
             .AddHttpClient<GithubApiHttpClientService>(options =>
             {
-                options.DefaultRequestHeaders.UserAgent.TryParseAdd("dotNET HTTP Client/1.0 personal bot agent");
+                options.DefaultRequestHeaders.UserAgent.TryParseAdd(Constants.HeaderUserAgent);
+                options.DefaultRequestHeaders.Add("Authorization", configuration["GitHubAccessToken"]);
             });
     }
 }

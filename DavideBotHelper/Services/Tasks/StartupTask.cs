@@ -1,4 +1,5 @@
 using Coravel;
+using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Extensions;
 
 namespace DavideBotHelper.Services.Tasks;
@@ -33,6 +34,21 @@ public class StartupTask : BackgroundService
                         .PreventOverlapping(nameof(PowerAlertTask)))
                 .LogScheduledTaskProgress();
         }
+
+        _serviceProvider.UseScheduler(scheduler =>
+            {
+                scheduler.Schedule<GithubReleasesCheckerTask>()
+                    .DailyAtHour(14)
+                    .PreventOverlapping(nameof(GithubReleasesCheckerTask));
+                scheduler.Schedule<GithubReleaseDownloadTask>()
+                    .EveryThirtyMinutes()
+                    .PreventOverlapping(nameof(GithubReleaseDownloadTask))
+                    .RunOnceAtStart();
+                scheduler.Schedule<SendReleaseAssetTask>()
+                    .Cron(Constants.Every20MinutesCron)
+                    .PreventOverlapping(nameof(SendReleaseAssetTask));
+            })
+            .LogScheduledTaskProgress();
         // while (!stoppingToken.IsCancellationRequested)
         // {
         //     if (_logger.IsEnabled(LogLevel.Information))

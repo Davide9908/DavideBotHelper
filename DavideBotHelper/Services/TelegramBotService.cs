@@ -41,7 +41,7 @@ public class TelegramBotService : IDisposable
         StreamWriter WTelegramLogs = new StreamWriter("WTelegramBot.log", true, Encoding.UTF8) { AutoFlush = true };
         Helpers.Log = (lvl, str) => WTelegramLogs.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{"TDIWE!"[lvl]}] {str}");
 
-        var connection = new Microsoft.Data.Sqlite.SqliteConnection(@"Data Source=WTelegramBotClient.db");
+        var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=WTelegramBotClient.db");
 
         _bot = new Bot(_botConfig.TelegramBotToken, _botConfig.TelegramApiId, _botConfig.TelegramAccessHash, connection);
     }
@@ -238,6 +238,12 @@ public class TelegramBotService : IDisposable
     public async Task<Message> SendMessage(ChatId chat, string message, ReplyParameters? replyParameters = default)
     {
         return await _bot.SendMessage(chat, message, replyParameters:replyParameters);
+    }
+
+    public async Task<Message> SendDocumentAsync(ChatId chat, Stream content, string filename, string? message = null)
+    {
+        InputFileStream inputFileStream = new InputFileStream(content, filename);
+        return await _bot.SendDocument(chat, inputFileStream, message);
     }
     
     private async Task Client_OnOther(TL.IObject arg)

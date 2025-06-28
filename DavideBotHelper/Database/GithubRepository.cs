@@ -25,7 +25,7 @@ public class GithubRepository
     [Column("tag_regex"), MaxLength(100)]
     public string? TagRegexPattern { get; set; }
     
-    [Column("version_regex"), MaxLength(100)]
+    [Column("asset_name_regex"), MaxLength(100)]
     public string? VersionRegexPattern { get; set; }
     
     [Column("flag_reset_release_cache")]

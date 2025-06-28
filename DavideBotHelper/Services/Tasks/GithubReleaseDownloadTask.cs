@@ -8,11 +8,11 @@ namespace DavideBotHelper.Services.Tasks;
 
 public class GithubReleaseDownloadTask : TransactionalTask
 {
-    private readonly ILogger _log;
+    private readonly ILogger<GithubReleaseDownloadTask> _log;
     private readonly DavideBotDbContext _dbContext;
     private readonly GithubApiHttpClientService _apiClient;
 
-    public GithubReleaseDownloadTask(ILogger log, DavideBotDbContext dbContext, GithubApiHttpClientService apiClient)
+    public GithubReleaseDownloadTask(ILogger<GithubReleaseDownloadTask> log, DavideBotDbContext dbContext, GithubApiHttpClientService apiClient) : base(log, dbContext)
     {
         _log = log;
         _dbContext = dbContext;
@@ -43,7 +43,7 @@ public class GithubReleaseDownloadTask : TransactionalTask
         {
             await Task.WhenAll(downloadTasks.Values);
         }
-        catch (Exception ex)
+        catch (Exception ex) //evito che WhenAll rilanci l'eccezione del/dei task che fallisce, le gestisco io separatamente
         {
             
         }
@@ -59,10 +59,11 @@ public class GithubReleaseDownloadTask : TransactionalTask
             }
 
             asset.Data = task.Result;
+            asset.IsCompressed = false; //resetto anche la compressione nel caso lo abbia richiesto manualmente
             asset.RequireDownload = false;
             asset.ToSend = true;
         }
 
-        _ = _dbContext.SaveChangesAsync(CancellationToken.None);
+        _ = await _dbContext.SaveChangesAsync(CancellationToken.None);
     }
 }
