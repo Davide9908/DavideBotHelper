@@ -31,73 +31,73 @@ public class SendReleaseAssetTask : TransactionalTask
             .Where(release => release.ToSend)
             .ToListAsync(_ct);
 
-        foreach (RepositoryRelease assetTosend in releasesToSend)
+        foreach (RepositoryRelease assetToSend in releasesToSend)
         {
-            if (assetTosend.Data == null)
+            if (assetToSend.Data == null)
             {
                 _log.Error("Asset data non presente, ma asset settato per essere mandato");
-                assetTosend.ToSend = false;
+                assetToSend.ToSend = false;
                 _ = await _dbContext.SaveChangesAsync();
                 continue;
             }
 
-            if (assetTosend.Data.Length > Constants.MaxUncompressedAssetDataSize)
+            if (assetToSend.Data.Length > Constants.MaxUncompressedAssetDataSize)
             {
-                _log.Warning("Asset {assetName} repository {repositoryName} supera il limite massimo da non compresso", assetTosend.FileName, assetTosend.GithubRepository.Name);
+                _log.Warning("Asset {assetName} repository {repositoryName} supera il limite massimo da non compresso", assetToSend.FileName, assetToSend.GithubRepository.Name);
                 _ = await _telegramBotService.SendMessage(_chatId,
-                    $"Asset {assetTosend.FileName} repository {assetTosend.GithubRepository.Name} supera il limite massimo da non compresso");
-                assetTosend.ToSend = false;
+                    $"Asset {assetToSend.FileName} repository {assetToSend.GithubRepository.Name} supera il limite massimo da non compresso");
+                assetToSend.ToSend = false;
                 _ = await _dbContext.SaveChangesAsync(CancellationToken.None);
                 continue;
             }
 
-            if (assetTosend.IsCompressed && assetTosend.Data.Length > Constants.MaxCompressedAssetDataSize)
+            if (assetToSend.IsCompressed && assetToSend.Data.Length > Constants.MaxCompressedAssetDataSize)
             {
                 _ = await _telegramBotService.SendMessage(_chatId,
-                    $"Asset {assetTosend.FileName} repository {assetTosend.GithubRepository.Name} troppo grande per essere mandato anche dopo la compressione");
+                    $"Asset {assetToSend.FileName} repository {assetToSend.GithubRepository.Name} troppo grande per essere mandato anche dopo la compressione");
                 _log.Warning(
                     "Asset {assetName} repository {repositoryName} troppo grande per essere mandato anche dopo la compressione",
-                    assetTosend.FileName, assetTosend.GithubRepository.Name);
+                    assetToSend.FileName, assetToSend.GithubRepository.Name);
                 
-                assetTosend.ToSend = false;
+                assetToSend.ToSend = false;
                 _ = await _dbContext.SaveChangesAsync(CancellationToken.None);
                 continue;
             }
             
-            if (assetTosend.Data.Length > Constants.MaxCompressedAssetDataSize)
+            if (assetToSend.Data.Length > Constants.MaxCompressedAssetDataSize)
             {
-                byte[] compressedData = await CompressAssetData(assetTosend.Data, assetTosend.FileName);
+                byte[] compressedData = await CompressAssetData(assetToSend.Data, assetToSend.FileName);
                 if (compressedData.Length > Constants.MaxCompressedAssetDataSize)
                 {
                     _ = await _telegramBotService.SendMessage(_chatId,
-                        $"Asset {assetTosend.FileName} repository {assetTosend.GithubRepository.Name} troppo grande per essere mandato anche dopo la compressione");
+                        $"Asset {assetToSend.FileName} repository {assetToSend.GithubRepository.Name} troppo grande per essere mandato anche dopo la compressione");
                     _log.Warning(
                         "Asset {assetName} repository {repositoryName} troppo grande per essere mandato anche dopo la compressione",
-                        assetTosend.FileName, assetTosend.GithubRepository.Name);
+                        assetToSend.FileName, assetToSend.GithubRepository.Name);
                     
-                    assetTosend.ToSend = false;
+                    assetToSend.ToSend = false;
                     _ = await _dbContext.SaveChangesAsync(CancellationToken.None);
                     continue;
                 }
 
-                assetTosend.Data = compressedData;
-                assetTosend.FileName += Constants.CompressedDataFileExtension;
-                assetTosend.Size = compressedData.Length;
-                assetTosend.IsCompressed = true;
+                assetToSend.Data = compressedData;
+                assetToSend.FileName += Constants.CompressedDataFileExtension;
+                assetToSend.Size = compressedData.Length;
+                assetToSend.IsCompressed = true;
                 _ = await _dbContext.SaveChangesAsync();
             }
 
-            var assetStream = new MemoryStream(assetTosend.Data);
+            var assetStream = new MemoryStream(assetToSend.Data);
             try
             {
-                _ = await _telegramBotService.SendDocumentAsync(new ChatId(38076310), assetStream, assetTosend.FileName,
-                    $"Nuova release da {assetTosend.GithubRepository.Name}, versione {assetTosend.Version}!");
+                _ = await _telegramBotService.SendDocumentAsync(new ChatId(38076310), assetStream, assetToSend.FileName,
+                    $"Nuova release da {assetToSend.GithubRepository.Name}, versione {assetToSend.Version}!");
             }
             finally
             {
                 await assetStream.DisposeAsync();
             }
-            assetTosend.ToSend = false;
+            assetToSend.ToSend = false;
         }
         _ = await _dbContext.SaveChangesAsync();
     }

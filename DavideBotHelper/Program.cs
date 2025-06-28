@@ -11,7 +11,7 @@ using DBType = ASql.ASqlManager.DBType;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddServices(builder.Configuration);
+builder.Services.AddServices(builder.Configuration, builder.Environment);
 
 var host = builder.Build();
 using (var scope = host.Services.CreateScope())
@@ -24,7 +24,7 @@ host.Run();
 
 file static class ServiceExtension
 {
-    public static void AddServices(this IServiceCollection services, IConfiguration configuration)
+    public static void AddServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment env)
     {
         services.AddHostedService<StartupTask>()
             .AddDbContext<DavideBotDbContext>()
@@ -38,7 +38,15 @@ file static class ServiceExtension
             .AddScheduler()
             .AddSerilog( serilogConfig=>
             {
-                serilogConfig = serilogConfig.MinimumLevel.Debug().WriteTo.Console();
+                if (env.IsDevelopment())
+                {
+                    serilogConfig = serilogConfig.MinimumLevel.Debug().WriteTo.Console();
+                }
+                else
+                {
+                    serilogConfig = serilogConfig.MinimumLevel.Information().WriteTo.Console();
+                }
+
                 string? connectionString = configuration.GetConnectionString("DavideBotDB");
                 if (connectionString is null)
                 {

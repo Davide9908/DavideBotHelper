@@ -30,7 +30,7 @@ public class StartupTask : BackgroundService
         {
             _serviceProvider.UseScheduler(scheduler =>
                     scheduler.Schedule<PowerAlertTask>()
-                        .EverySecond()
+                        .EverySeconds(Constants.Every3Seconds)
                         .PreventOverlapping(nameof(PowerAlertTask)))
                 .LogScheduledTaskProgress();
         }
@@ -39,6 +39,7 @@ public class StartupTask : BackgroundService
             {
                 scheduler.Schedule<GithubReleasesCheckerTask>()
                     .DailyAtHour(14)
+                    .Zoned(TimeZoneInfo.Local)
                     .PreventOverlapping(nameof(GithubReleasesCheckerTask));
                 scheduler.Schedule<GithubReleaseDownloadTask>()
                     .EveryThirtyMinutes()

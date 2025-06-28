@@ -6,20 +6,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DavideBotHelper.Services.Tasks;
 
-public abstract class TransactionalTask : IInvocable, ICancellableInvocable
+public abstract class TransactionalTask : BaseTask
 {
     private readonly ILogger _log;
     private readonly DavideBotDbContext? _dbContext;
 
-    protected TransactionalTask(ILogger log, DavideBotDbContext? context = null)
+    protected TransactionalTask(ILogger log, DavideBotDbContext context) : base(log)
     {
         _log = log;
         _dbContext = context;
     }
 
-    async Task IInvocable.Invoke()
+    public sealed override async Task Invoke()
     {
-        //var transScope = new TransactionScope(TransactionScopeOption.Required, new  TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }, TransactionScopeAsyncFlowOption.Enabled);
+        
         if (_dbContext is null)
         {
             await Run();
@@ -45,9 +45,6 @@ public abstract class TransactionalTask : IInvocable, ICancellableInvocable
 
     }
 
-    protected abstract Task Run();
+    protected abstract override Task Run();
 
-    protected CancellationToken _ct;
-
-    public CancellationToken CancellationToken { get => _ct; set  => _ct = value; }
 }

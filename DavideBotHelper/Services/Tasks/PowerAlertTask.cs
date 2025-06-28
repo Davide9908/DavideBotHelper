@@ -4,7 +4,7 @@ using Message = Telegram.Bot.Types.Message;
 
 namespace DavideBotHelper.Services.Tasks;
 
-public class PowerAlertTask : TransactionalTask
+public class PowerAlertTask : BaseTask
 {
     
     // private const string UpsFlag = "G:\\test\\upsOnBattery";

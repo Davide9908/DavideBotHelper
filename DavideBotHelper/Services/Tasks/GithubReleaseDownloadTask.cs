@@ -18,8 +18,7 @@ public class GithubReleaseDownloadTask : TransactionalTask
         _dbContext = dbContext;
         _apiClient = apiClient;
     }
-
-
+    
     protected override async Task Run()
     {
         var assetToDownload = await _dbContext.RepositoryReleases
