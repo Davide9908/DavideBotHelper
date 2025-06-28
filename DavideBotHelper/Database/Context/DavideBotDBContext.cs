@@ -1,5 +1,4 @@
-﻿using DavideBotHelper.Services;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace DavideBotHelper.Database.Context;
 

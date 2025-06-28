@@ -1,8 +1,5 @@
-﻿using System.Transactions;
-using Coravel.Invocable;
-using DavideBotHelper.Database.Context;
+﻿using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services.Extensions;
-using Microsoft.EntityFrameworkCore;
 
 namespace DavideBotHelper.Services.Tasks;
 

@@ -4,7 +4,6 @@ using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
 using Telegram.Bot.Types;
 
 namespace DavideBotHelper.Services.Tasks;

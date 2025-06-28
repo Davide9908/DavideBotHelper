@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using Coravel.Invocable;
 using DavideBotHelper.Database;
 using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services.ClassesAndUtilities;
@@ -35,7 +34,7 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
 
         foreach (var repo in repos)
         {
-            tasks.Add(repo.Name, _apiClient.GetGHRepositoryReleases(repo.RepositoryUrl, _ct));
+            tasks.Add(repo.Name, _apiClient.GetGithubRepositoryReleases(repo.RepositoryUrl, _ct));
         }
 
         try
