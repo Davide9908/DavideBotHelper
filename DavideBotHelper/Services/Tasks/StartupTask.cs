@@ -4,14 +4,14 @@ using DavideBotHelper.Services.Extensions;
 
 namespace DavideBotHelper.Services.Tasks;
 
-public class StartupTask : BackgroundService
+public class StartupTask : BaseTask
 {
     private readonly ILogger<StartupTask> _log;
     private readonly TelegramBotService _botService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
     private readonly bool _isDevelopment;
-    public StartupTask(ILogger<StartupTask> log, TelegramBotService botService, IServiceProvider serviceProvider, IConfiguration configuration, IHostEnvironment hostEnvironment)
+    public StartupTask(ILogger<StartupTask> log, TelegramBotService botService, IServiceProvider serviceProvider, IConfiguration configuration, IHostEnvironment hostEnvironment) : base(log)
     {
         _log = log;
         _botService = botService;
@@ -20,44 +20,64 @@ public class StartupTask : BackgroundService
         _isDevelopment = hostEnvironment.IsDevelopment();
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task Run()
     {
         _log.Info("Starting Telegram Bot");
         await _botService.Connect();
 
-        var enabledTasks = _configuration.GetSection("EnabledTasks").Get<string[]>() ?? [];
-        if (!_isDevelopment || enabledTasks.Contains("PowerAlertTask"))
+        if (_isDevelopment)
         {
+            var enabledTasks = _configuration.GetSection("EnabledTasks").Get<string[]>() ?? [];
             _serviceProvider.UseScheduler(scheduler =>
-                    scheduler.Schedule<PowerAlertTask>()
-                        .EverySeconds(Constants.Every3Seconds)
-                        .PreventOverlapping(nameof(PowerAlertTask)))
+                {
+                    if (enabledTasks.Contains(nameof(PowerAlertTask)))
+                    {
+                        scheduler.Schedule<PowerAlertTask>()
+                            .EverySeconds(Constants.Every3Seconds)
+                            .PreventOverlapping(nameof(PowerAlertTask));
+                    }
+                    if (enabledTasks.Contains(nameof(GithubReleasesCheckerTask)))
+                    {
+                        scheduler.Schedule<GithubReleasesCheckerTask>()
+                            .DailyAtHour(14)
+                            .Zoned(TimeZoneInfo.Local)
+                            .PreventOverlapping(nameof(GithubReleasesCheckerTask));
+                    }
+                    if (enabledTasks.Contains(nameof(GithubReleaseDownloadTask)))
+                    {
+                        scheduler.Schedule<GithubReleaseDownloadTask>()
+                            .EveryThirtySeconds()
+                            .PreventOverlapping(nameof(GithubReleaseDownloadTask));
+                    }
+                    if (enabledTasks.Contains(nameof(SendReleaseAssetTask)))
+                    {
+                        scheduler.Schedule<SendReleaseAssetTask>()
+                            .Cron(Constants.Every25MinutesCron)
+                            .PreventOverlapping(nameof(SendReleaseAssetTask));
+                    }
+                })
                 .LogScheduledTaskProgress();
         }
-
-        _serviceProvider.UseScheduler(scheduler =>
-            {
-                scheduler.Schedule<GithubReleasesCheckerTask>()
-                    .DailyAtHour(14)
-                    .Zoned(TimeZoneInfo.Local)
-                    .PreventOverlapping(nameof(GithubReleasesCheckerTask));
-                scheduler.Schedule<GithubReleaseDownloadTask>()
-                    .EveryThirtyMinutes()
-                    .PreventOverlapping(nameof(GithubReleaseDownloadTask))
-                    .RunOnceAtStart();
-                scheduler.Schedule<SendReleaseAssetTask>()
-                    .Cron(Constants.Every20MinutesCron)
-                    .PreventOverlapping(nameof(SendReleaseAssetTask));
-            })
-            .LogScheduledTaskProgress();
-        // while (!stoppingToken.IsCancellationRequested)
-        // {
-        //     if (_logger.IsEnabled(LogLevel.Information))
-        //     {
-        //         LoggerExtensions.LogInformation(_logger, "Worker running at: {time}", DateTimeOffset.Now);
-        //     }
-        //
-        //     await Task.Delay(1000, stoppingToken);
-        // }
+        else
+        {
+            _serviceProvider.UseScheduler(scheduler =>
+                {
+                    scheduler.Schedule<PowerAlertTask>()
+                        .EverySeconds(Constants.Every3Seconds)
+                        .PreventOverlapping(nameof(PowerAlertTask));
+                    scheduler.Schedule<GithubReleasesCheckerTask>()
+                        .DailyAtHour(14)
+                        .Zoned(TimeZoneInfo.Local)
+                        .PreventOverlapping(nameof(GithubReleasesCheckerTask));
+                    scheduler.Schedule<GithubReleaseDownloadTask>()
+                        .EveryThirtyMinutes()
+                        .PreventOverlapping(nameof(GithubReleaseDownloadTask))
+                        .RunOnceAtStart();
+                    scheduler.Schedule<SendReleaseAssetTask>()
+                        .Cron(Constants.Every25MinutesCron)
+                        .PreventOverlapping(nameof(SendReleaseAssetTask));
+                })
+                .LogScheduledTaskProgress();
+        }
     }
 }

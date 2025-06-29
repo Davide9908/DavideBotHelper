@@ -14,10 +14,20 @@ builder.Services.AddServices(builder.Configuration, builder.Environment);
 
 var host = builder.Build();
 using (var scope = host.Services.CreateScope())
-using (var dbContext = scope.ServiceProvider.GetRequiredService<DavideBotDbContext>())
 {
-    dbContext.Migrate();
+    using (var dbContext = scope.ServiceProvider.GetRequiredService<DavideBotDbContext>())
+    {
+        dbContext.Migrate();
+    }
+    scope.ServiceProvider.UseScheduler(scheduler =>
+    {
+        scheduler.Schedule<StartupTask>()
+            .EverySecond()
+            .Once()
+            .PreventOverlapping(nameof(StartupTask));
+    });
 }
+
 
 host.Run();
 
@@ -25,8 +35,8 @@ file static class ServiceExtension
 {
     public static void AddServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment env)
     {
-        services.AddHostedService<StartupTask>()
-            .AddDbContext<DavideBotDbContext>()
+        services.AddDbContext<DavideBotDbContext>()
+            .AddScoped<StartupTask>()
             .AddScoped<GithubApiHttpClientService>()
             .AddScoped<GithubReleasesCheckerTask>()
             .AddScoped<GithubReleaseDownloadTask>()
