@@ -68,6 +68,7 @@ public class StartupTask : BaseTask
                     scheduler.Schedule<GithubReleasesCheckerTask>()
                         .DailyAtHour(14)
                         .Zoned(TimeZoneInfo.Local)
+                        .RunOnceAtStart()
                         .PreventOverlapping(nameof(GithubReleasesCheckerTask));
                     scheduler.Schedule<GithubReleaseDownloadTask>()
                         .EveryThirtyMinutes()

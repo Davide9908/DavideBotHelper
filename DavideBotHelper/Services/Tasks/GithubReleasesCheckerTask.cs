@@ -50,6 +50,8 @@ public sealed class GithubReleasesCheckerTask : TransactionalTask
 
         foreach (var repo in repos)
         {
+            repo.LastChecked = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(_ct);
             var task = tasks[repo.Name];
             var tagRegex = new Regex(repo.TagRegexPattern ?? DefaultRegPattern);
             var versionRegex = new Regex(repo.VersionRegexPattern ?? DefaultRegPattern, RegexOptions.Compiled);

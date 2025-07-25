@@ -15,8 +15,8 @@ public class RepositoryRelease
     public int RepositoryId { get; init; }
     public GithubRepository GithubRepository { get; set; }
     
-    [Column("filename"), Required]
-    public string FileName { get; set; }
+    [Column("filename")]
+    public string? FileName { get; set; }
     
     [Column("version"), Required]
     public string Version { get; set; }
