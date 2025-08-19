@@ -89,7 +89,7 @@ public class SendReleaseAssetTask : TransactionalTask
             var assetStream = new MemoryStream(assetToSend.Data);
             try
             {
-                _ = await _telegramBotService.SendDocumentAsync(new ChatId(38076310), assetStream, assetToSend.FileName,
+                _ = await _telegramBotService.SendDocumentAsync(new ChatId(38076310), assetStream, "v" + assetToSend.Version+"-" + assetToSend.FileName!,
                     $"Nuova release da {assetToSend.GithubRepository.Name}, versione {assetToSend.Version}!");
             }
             finally
