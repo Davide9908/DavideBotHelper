@@ -2,6 +2,9 @@
 using System.Net.Sockets;
 using System.Text;
 using DavideBotHelper.Services.Extensions;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -15,10 +18,11 @@ public class TelegramBotService : IDisposable
     private readonly ILogger<TelegramBotService> _log;
     private readonly BotConfig _botConfig = new();
     private readonly IServiceProvider _serviceProvider;
+    private readonly Logger? _wtcLogger;
     private bool _disposedValue;
-    private Bot _bot;
-    private static bool addSpesaRequested;
-    private static bool addEntrataRequested;
+    private Bot _bot = null!;
+    private static bool _addSpesaRequested;
+    private static bool _addEntrataRequested;
 
     private const string StartComando = "/start";
     private const string AddSpesaComando = "/aggiungispesa";
@@ -32,27 +36,47 @@ public class TelegramBotService : IDisposable
         _configuration = configuration;
         _log = log;
         _serviceProvider = serviceProvider;
+        
+        _wtcLogger = new LoggerConfiguration()
+            .WriteTo.File(
+                path: Path.Combine("wtbLogs", "WTelegramBot.log"),
+                rollingInterval: RollingInterval.Day,
+                outputTemplate:
+                "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+            )
+            .MinimumLevel.Debug()
+            .CreateLogger();
+        Helpers.Log += WtcLog;
+        
         appLifetime.ApplicationStopping.Register(OnServiceStopping);
         _configuration.GetRequiredSection("BotConfig").Bind(_botConfig);
         BotSetup();
     }
     private void BotSetup()
     {
-        StreamWriter WTelegramLogs = new StreamWriter("WTelegramBot.log", true, Encoding.UTF8) { AutoFlush = true };
-        Helpers.Log = (lvl, str) => WTelegramLogs.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{"TDIWE!"[lvl]}] {str}");
+        // StreamWriter WTelegramLogs = new StreamWriter("WTelegramBot.log", true, Encoding.UTF8) { AutoFlush = true };
+        // Helpers.Log = (lvl, str) => WTelegramLogs.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{"TDIWE!"[lvl]}] {str}");
 
         var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=WTelegramBotClient.db");
 
         _bot = new Bot(_botConfig.TelegramBotToken, _botConfig.TelegramApiId, _botConfig.TelegramAccessHash, connection);
+        _bot.OnMessage += OnMessage;
+        _bot.Client.OnOther += Client_OnOther;
     }
-    
+    private void WtcLog(int level, string message)
+    {
+        LogEventLevel logLevel = LogEventLevel.Information;
+        if(Enum.IsDefined(typeof(LogEventLevel), level))
+        {
+            logLevel = (LogEventLevel)level;
+        }
+        _wtcLogger!.Write(logLevel, message);
+    }
 
     public async Task Connect()
     {
-        await _bot.DropPendingUpdates();
-        _bot.OnMessage += OnMessage;
-        _bot.Client.OnOther += Client_OnOther;
         _ = await _bot.GetMe();
+        await _bot.DropPendingUpdates();
     }
     
     private async Task OnMessage(Message msg, UpdateType type)
@@ -68,34 +92,34 @@ public class TelegramBotService : IDisposable
             case StartComando:
                 break;
             case AddSpesaComando:
-                addSpesaRequested = true;
-                addEntrataRequested = false;
+                _addSpesaRequested = true;
+                _addEntrataRequested = false;
                 await _bot.SendMessage(msg.Chat, "Inserisci la spesa da aggiungere. Invia /annulla per annullare.", replyParameters: msg);
                 break;
             case AddEntrataComando:
-                addSpesaRequested = false; 
-                addEntrataRequested = true;
+                _addSpesaRequested = false; 
+                _addEntrataRequested = true;
                 await _bot.SendMessage(msg.Chat, "Inserisci l'entrata da aggiungere. Invia /annulla per annullare.", replyParameters: msg);
                 break;
             case AnnullaComando:
-                addEntrataRequested = false;
-                addSpesaRequested = false;
+                _addEntrataRequested = false;
+                _addSpesaRequested = false;
                 await _bot.SendMessage(msg.Chat, "Comando precedente annullato!", replyParameters: msg);
                 break;
             case Ping:
                 await _bot.SendMessage(msg.Chat, "Pong!", replyParameters: msg);
                 break;
             default:
-                if (addSpesaRequested)
+                if (_addSpesaRequested)
                 {
                     await HandleAggiuntaSpesa(msg.Text, (msg.Chat, msg));
-                    addSpesaRequested = false;
+                    _addSpesaRequested = false;
                     break;
                 }
-                if (addEntrataRequested)
+                if (_addEntrataRequested)
                 {
                     await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
-                    addEntrataRequested = false;
+                    _addEntrataRequested = false;
                     break;
                 }
                 await _bot.SendMessage(msg.Chat, "Comando non riconosciuto.", replyParameters: msg);
@@ -253,20 +277,28 @@ public class TelegramBotService : IDisposable
         {
             _log.Error(message: "Fatal reactor error", exception: err.Exception);
             _bot.Dispose();
+            _log.Error("Recreating bot client");
             BotSetup();
-            bool retry = true;
             int tryCount = 1;
-            while (retry)
+            while (true)
             {
                 try
                 {
+                    _log.Error("Connecting {count}", tryCount);
                     await Connect();
-                    retry = false;
+                    break;
                 }
                 catch (SocketException se)
                 {
-                    _log.Error("Unable to connect, retrying ({retryCount})", tryCount, se);
+                    _log.Error(se, "Unable to connect, socket exception)");
+                    tryCount++;
                 }
+                catch (Exception ex)
+                {
+                    _log.Error(ex, "Unable to connect telegram bot");
+                    tryCount++;
+                }
+                await Task.Delay(1000);
             }
         }
     }
@@ -282,6 +314,8 @@ public class TelegramBotService : IDisposable
         {
             _bot.OnMessage -= OnMessage;
             _bot.Client.OnOther -= Client_OnOther;
+            _wtcLogger?.Dispose();
+            Helpers.Log -= WtcLog;
             _bot.Dispose();
         
             _disposedValue = true;

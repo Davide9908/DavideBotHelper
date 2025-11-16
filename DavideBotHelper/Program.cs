@@ -4,6 +4,7 @@ using DavideBotHelper.Services;
 using DavideBotHelper.Services.ClassesAndUtilities;
 using DavideBotHelper.Services.Tasks;
 using Serilog;
+using Serilog.Enrichers.WithCaller;
 using Serilog.Events;
 using Serilog.Sinks.Database;
 using DBType = ASql.ASqlManager.DBType;
@@ -62,7 +63,8 @@ file static class ServiceExtension
                     throw new ApplicationException("Could not find connection string");
                 }
                     
-                serilogConfig.WriteTo.Database(DBType.PostgreSQL, connectionString, "system_log",
+                serilogConfig.Enrich.WithCaller()
+                    .WriteTo.Database(DBType.PostgreSQL, connectionString, "system_log",
                         LogEventLevel.Debug, false, 1);
             })
             .AddHttpClient<GithubApiHttpClientService>(options =>
