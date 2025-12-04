@@ -276,12 +276,13 @@ public class TelegramBotService : IDisposable
         if ((err = arg as TL.ReactorError) is not null)
         {
             _log.Error(message: "Fatal reactor error", exception: err.Exception);
-            _bot.Dispose();
-            _log.Error("Recreating bot client");
-            BotSetup();
+            
             int tryCount = 1;
             while (true)
             {
+                _bot.Dispose();
+                _log.Error("Recreating bot client");
+                BotSetup();
                 try
                 {
                     _log.Error("Connecting {count}", tryCount);
@@ -290,7 +291,7 @@ public class TelegramBotService : IDisposable
                 }
                 catch (SocketException se)
                 {
-                    _log.Error(se, "Unable to connect, socket exception)");
+                    _log.Error(se, "Unable to connect, socket exception");
                     tryCount++;
                 }
                 catch (Exception ex)
@@ -298,7 +299,7 @@ public class TelegramBotService : IDisposable
                     _log.Error(ex, "Unable to connect telegram bot");
                     tryCount++;
                 }
-                await Task.Delay(1000);
+                await Task.Delay(5000);
             }
         }
     }
