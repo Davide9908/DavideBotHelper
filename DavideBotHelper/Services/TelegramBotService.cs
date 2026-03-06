@@ -23,6 +23,7 @@ public class TelegramBotService : IDisposable
     private Bot _bot = null!;
     private static bool _addSpesaRequested;
     private static bool _addEntrataRequested;
+    private DateTime? _lastPong;
 
     private const string StartComando = "/start";
     private const string AddSpesaComando = "/aggiungispesa";
@@ -285,8 +286,9 @@ public class TelegramBotService : IDisposable
                 BotSetup();
                 try
                 {
-                    _log.Error("Connecting {count}", tryCount);
+                    _log.Info("Connecting {count}", tryCount);
                     await Connect();
+                    _log.Info("Connected");
                     break;
                 }
                 catch (SocketException se)
@@ -301,6 +303,9 @@ public class TelegramBotService : IDisposable
                 }
                 await Task.Delay(5000);
             }
+        } else if (arg is TL.Pong)
+        {
+            _lastPong = DateTime.Now;
         }
     }
     
@@ -323,7 +328,7 @@ public class TelegramBotService : IDisposable
         }
     }
 
-    private  record MovimentoDetail
+    private record MovimentoDetail
     {
         public decimal Valore { get; private set; }  
         public string Descrizione { get; private set; }  
