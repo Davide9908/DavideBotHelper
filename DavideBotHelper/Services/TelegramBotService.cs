@@ -1,20 +1,25 @@
 ﻿using System.Globalization;
+using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using DavideBotHelper.Database;
+using DavideBotHelper.Database.Context;
 using DavideBotHelper.Services.Extensions;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 using WTelegram;
 
 namespace DavideBotHelper.Services;
 
 public class TelegramBotService : IDisposable
 {
-    private readonly IConfiguration _configuration;
     private readonly ILogger<TelegramBotService> _log;
     private readonly BotConfig _botConfig = new();
     private readonly IServiceProvider _serviceProvider;
@@ -24,17 +29,23 @@ public class TelegramBotService : IDisposable
     private static bool _addSpesaRequested;
     private static bool _addEntrataRequested;
     private DateTime? _lastPong;
+    private static readonly string[] ValidPrefixes = [WolRequestCallbackPrefix];
 
     private const string StartComando = "/start";
     private const string AddSpesaComando = "/aggiungispesa";
     private const string AddEntrataComando = "/aggiungientrata";
     private const string AnnullaComando = "/annulla";
     private const string Ping = "/ping";
-    private const char Separator = ',';
-    
+    private const string WakeOnLan = "/wol";
+    private const char MovimentoSeparator = ',';
+    private const string WolRequestCallbackPrefix = "WolRequest";
+    private const char CallbackSeparator = '~';
+    private const string DoneButtonData = "done";
+    private const int WolPort = 9;
+
+
     public TelegramBotService(IConfiguration configuration, ILogger<TelegramBotService> log, IHostApplicationLifetime appLifetime, IServiceProvider serviceProvider)
     {
-        _configuration = configuration;
         _log = log;
         _serviceProvider = serviceProvider;
         
@@ -50,19 +61,17 @@ public class TelegramBotService : IDisposable
         Helpers.Log += WtcLog;
         
         appLifetime.ApplicationStopping.Register(OnServiceStopping);
-        _configuration.GetRequiredSection("BotConfig").Bind(_botConfig);
+        configuration.GetRequiredSection("BotConfig").Bind(_botConfig);
         BotSetup();
     }
     private void BotSetup()
     {
-        // StreamWriter WTelegramLogs = new StreamWriter("WTelegramBot.log", true, Encoding.UTF8) { AutoFlush = true };
-        // Helpers.Log = (lvl, str) => WTelegramLogs.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{"TDIWE!"[lvl]}] {str}");
-
         var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=WTelegramBotClient.db");
 
         _bot = new Bot(_botConfig.TelegramBotToken, _botConfig.TelegramApiId, _botConfig.TelegramAccessHash, connection);
         _bot.OnMessage += OnMessage;
         _bot.Client.OnOther += Client_OnOther;
+        _bot.OnUpdate += OnUpdate;
     }
     private void WtcLog(int level, string message)
     {
@@ -78,6 +87,44 @@ public class TelegramBotService : IDisposable
     {
         _ = await _bot.GetMe();
         await _bot.DropPendingUpdates();
+    }
+
+    private async Task OnUpdate(Update update)
+    {
+        if (update.CallbackQuery is not null && update.CallbackQuery.Message is not null)
+        {
+            if (update.CallbackQuery.Data is null)
+            {
+                _log.Error("Received callback without data");
+                await _bot.AnswerCallbackQuery(update.CallbackQuery.Id);
+                return;
+            }
+            var data = update.CallbackQuery.Data;
+            //User pressed "Done" dummy button
+            if (data == DoneButtonData)
+            {
+                await _bot.AnswerCallbackQuery(update.CallbackQuery.Id);
+                return;
+            }
+            
+            var callbackData = data.Split(CallbackSeparator);
+            
+            if (callbackData.Length != 2 && !ValidPrefixes.Contains(callbackData[0]))
+            {
+                _log.Error("Received invalid callback data: {data}", data);
+                await _bot.AnswerCallbackQuery(update.CallbackQuery.Id);
+                return;
+            }
+
+            switch (callbackData[0])
+            {
+                case WolRequestCallbackPrefix:
+                    await HandleWolCallback(update.CallbackQuery, callbackData[1]);
+                    break;
+                default:
+                    break;
+            }
+        }
     }
     
     private async Task OnMessage(Message msg, UpdateType type)
@@ -110,6 +157,9 @@ public class TelegramBotService : IDisposable
             case Ping:
                 await _bot.SendMessage(msg.Chat, "Pong!", replyParameters: msg);
                 break;
+            case WakeOnLan:
+                await HandleWolRequest(msg);
+                break;
             default:
                 if (_addSpesaRequested)
                 {
@@ -126,25 +176,102 @@ public class TelegramBotService : IDisposable
                 await _bot.SendMessage(msg.Chat, "Comando non riconosciuto.", replyParameters: msg);
                 break;
         }
+    }
 
-        // if (msg.Text == StartComando)
-        // {
-        //     return;
-        // }
-        //
-        // if (msg.Text.StartsWith(AddSpesaComando))
-        // {
-        //     await HandleAggiuntaSpesa(msg.Text, (msg.Chat, msg));
-        // }
-        // else if (msg.Text.StartsWith(AddEntrataComando))
-        // {
-        //     await HandleAggiuntaEntrata(msg.Text, (msg.Chat, msg));
-        // }
-        // else
-        // {
-        //     await _bot.SendMessage(msg.Chat, "Comando non riconosciuto", replyParameters: msg);
-        // }
+    private async Task HandleWolRequest(Message msg)
+    {
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        await using var dbContext = scope.ServiceProvider.GetRequiredService<DavideBotDbContext>();
+        
+        var devices = dbContext.WolDevices.Where(w => w.IsEnabled).ToList();
+        var inlineKeyboard = new InlineKeyboardMarkup();
 
+        if (!devices.Any())
+        {
+            await _bot.SendMessage(msg.Chat, "Nessun dispositivo configurato per il wake-on-lan", replyParameters: msg);
+            return;
+        }
+
+        var first = devices[0];
+        foreach (WolDevice device in devices)
+        {
+            if (device != first)
+            {
+                inlineKeyboard.AddNewRow();
+            }
+            inlineKeyboard.AddButton(device.Description ?? "Unknown Device: " + device.DeviceMacAddress, string.Join(CallbackSeparator, WolRequestCallbackPrefix, device.WolDeviceId.ToString()));
+        }
+        
+        await _bot.SendMessage(msg.Chat, "Seleziona il dispositivo da accendere:", replyParameters: msg, replyMarkup: inlineKeyboard);
+    }
+    
+    private async Task HandleWolCallback(CallbackQuery callbackQuery, string wolDevice)
+    {
+        if (!int.TryParse(wolDevice, out int wolDeviceId))
+        {
+            _log.Error("Received invalid callback data (id): {data}", callbackQuery.Data);
+            await _bot.AnswerCallbackQuery(callbackQuery.Id);
+            return;
+        }
+
+        await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
+        await using var dbContext = scope.ServiceProvider.GetRequiredService<DavideBotDbContext>();
+
+        WolDevice? device = await dbContext.WolDevices
+            .FirstOrDefaultAsync(wd => wd.WolDeviceId == wolDeviceId && wd.IsEnabled);
+        if (device is null)
+        {
+            _log.Error("Received invalid callback data (id) - device not found: {data}", callbackQuery.Data);
+            await _bot.AnswerCallbackQuery(callbackQuery.Id);
+            return;
+        }
+        
+        if (!PhysicalAddress.TryParse(device.DeviceMacAddress, out var address))
+        {
+            _log.Error("Configured mac address is not valid: {macAddress}", device.DeviceMacAddress);
+            await _bot.AnswerCallbackQuery(callbackQuery.Id, "L'indirizzo mac configurato non è valido", true);
+            return;
+        }
+        
+        byte[] wolPacket = new byte[102];
+
+        for (int i = 0; i < 6; i++)
+        {
+            wolPacket[i] = 0xFF;
+        }
+    
+        for (int i = 6; i < 102;)
+        {
+            foreach (var addressByte in address.GetAddressBytes())
+            {
+                wolPacket[i] = addressByte;
+                i++;
+            }
+        }
+    
+        using UdpClient client = new();
+        try
+        {
+            _log.Info("Connecting to Broadcast on Port {port}...", WolPort);
+            client.Connect(IPAddress.Broadcast, WolPort);
+            _log.Info("Sending WOL packet...");
+            await client.SendAsync(wolPacket, wolPacket.Length);
+            _log.Info("WOL packet sent...");
+        }
+        catch (Exception e)
+        {
+            _log.Error(e, "Error sending WOL packet to {device}", device);
+            await _bot.AnswerCallbackQuery(callbackQuery.Id);
+            return;
+        }
+        
+        await _bot.AnswerCallbackQuery(callbackQuery.Id);
+        var inlineKeyboard = new InlineKeyboardMarkup();
+        var button = new InlineKeyboardButton("Fatto ✅", DoneButtonData);
+        button.Style = KeyboardButtonStyle.Success;
+        inlineKeyboard.AddButton(button);
+            
+        await _bot.EditMessageReplyMarkup(callbackQuery.Message!.Chat, callbackQuery.Message.Id, inlineKeyboard);
     }
 
     private async Task HandleAggiuntaSpesa(string rawMessage, (Chat Chat, Message Message) request)
@@ -199,7 +326,7 @@ public class TelegramBotService : IDisposable
 
     private async Task<MovimentoDetail?> BuildMovimento(string textRequest, (Chat Chat, Message Message) request)
     {
-        string[] parts = textRequest.Split(Separator);
+        string[] parts = textRequest.Split(MovimentoSeparator);
         if (parts.Length <= 1 || parts.Length > 5)
         {
             await _bot.SendMessage(request.Chat, "La richiesta non è in un formato corretto. Il corretto formato è [valore],[descrizione],[anno?],[mese?],[giorno?]\n" +
@@ -281,6 +408,11 @@ public class TelegramBotService : IDisposable
             int tryCount = 1;
             while (true)
             {
+                _addEntrataRequested = false;
+                _addSpesaRequested = false;
+                _bot.Client.OnOther -= Client_OnOther;
+                _bot.OnMessage -= OnMessage;
+                _bot.OnUpdate -= OnUpdate;
                 _bot.Dispose();
                 _log.Error("Recreating bot client");
                 BotSetup();

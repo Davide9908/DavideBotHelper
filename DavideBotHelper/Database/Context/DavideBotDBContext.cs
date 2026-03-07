@@ -28,6 +28,8 @@ public class DavideBotDbContext : DbContext
     public DbSet<GithubRepository> GithubRepositories { get; set; }
     public DbSet<RepositoryRelease> RepositoryReleases { get; set; }
     
+    public DbSet<WolDevice> WolDevices { get; set; }
+    
     public void Migrate()
     {
         if (Database.GetPendingMigrations().Any())
