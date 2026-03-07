@@ -10,6 +10,8 @@
 
     <ItemGroup>
         <PackageReference Include="Coravel" Version="6.0.2" />
+        <PackageReference Include="Corsinvest.ProxmoxVE.Api" Version="9.1.5" />
+        <PackageReference Include="Corsinvest.ProxmoxVE.Api.Extension" Version="9.1.5" />
         <PackageReference Include="EPPlus" Version="8.5.0" />
         <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />

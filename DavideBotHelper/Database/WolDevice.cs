@@ -9,14 +9,21 @@ public class WolDevice
     [Column("wol_device_id")]
     public int WolDeviceId { get; set; }
     [Column("device_mac_address"), MaxLength(17)]
-    public string DeviceMacAddress { get; set; } = null!;
+    public string DeviceMacAddress { get; set; }
     [Column("description"), MaxLength(100)]
     public string? Description { get; set; }
     [Column("is_enabled")]
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; set; }
 
     public override string ToString()
     {
         return string.Join('-', WolDeviceId, Description, DeviceMacAddress);
+    }
+
+    public WolDevice(string deviceMacAddress, string? description)
+    {
+        DeviceMacAddress = deviceMacAddress;
+        Description = description;
+        IsEnabled = true;
     }
 }

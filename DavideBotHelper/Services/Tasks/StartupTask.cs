@@ -32,6 +32,13 @@ public class StartupTask : BaseTask
                 {
                     if (enabledTasks.Contains(nameof(PowerAlertTask)))
                     {
+                        scheduler.Schedule<WolProxmoxDevicesUpdaterTask>()
+                            .Hourly()
+                            .PreventOverlapping(nameof(WolProxmoxDevicesUpdaterTask));
+                    }
+
+                    if (enabledTasks.Contains(nameof(PowerAlertTask)))
+                    {
                         scheduler.Schedule<PowerAlertTask>()
                             .EverySeconds(Constants.Every3Seconds)
                             .PreventOverlapping(nameof(PowerAlertTask));
@@ -77,6 +84,9 @@ public class StartupTask : BaseTask
                     scheduler.Schedule<SendReleaseAssetTask>()
                         .Cron(Constants.Every25MinutesCron)
                         .PreventOverlapping(nameof(SendReleaseAssetTask));
+                    scheduler.Schedule<WolProxmoxDevicesUpdaterTask>()
+                        .Cron(Constants.Every6HoursCron)
+                        .PreventOverlapping(nameof(WolProxmoxDevicesUpdaterTask));
                 })
                 .LogScheduledTaskProgress();
         }

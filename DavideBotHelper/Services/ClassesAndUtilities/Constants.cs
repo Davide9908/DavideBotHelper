@@ -10,4 +10,5 @@ public static class Constants
     public const string HeaderUserAgent = "dotNET HTTP Client/1.0 personal bot agent";
     public const string Every25MinutesCron = "*/25 * * * *";
     public const int Every3Seconds = 3;
+    public const string Every6HoursCron = "0 */6 * * *";
 }
