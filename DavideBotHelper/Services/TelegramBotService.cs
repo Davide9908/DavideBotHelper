@@ -28,8 +28,9 @@ public class TelegramBotService : IDisposable
     private Bot _bot = null!;
     private static bool _addSpesaRequested;
     private static bool _addEntrataRequested;
-    private DateTime? _lastPong;
+    private long _lastPong;
     private static readonly string[] ValidPrefixes = [WolRequestCallbackPrefix];
+    private readonly SemaphoreSlim _reconnectionSemaphore = new SemaphoreSlim(1, 1);
 
     private const string StartComando = "/start";
     private const string AddSpesaComando = "/aggiungispesa";
@@ -67,11 +68,11 @@ public class TelegramBotService : IDisposable
     private void BotSetup()
     {
         var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=WTelegramBotClient.db");
-
         _bot = new Bot(_botConfig.TelegramBotToken, _botConfig.TelegramApiId, _botConfig.TelegramAccessHash, connection);
         _bot.OnMessage += OnMessage;
         _bot.Client.OnOther += Client_OnOther;
         _bot.OnUpdate += OnUpdate;
+        UpdateLastPong();
     }
     private void WtcLog(int level, string message)
     {
@@ -85,6 +86,7 @@ public class TelegramBotService : IDisposable
 
     public async Task Connect()
     {
+        UpdateLastPong();
         _ = await _bot.GetMe();
         await _bot.DropPendingUpdates();
     }
@@ -400,45 +402,76 @@ public class TelegramBotService : IDisposable
     
     private async Task Client_OnOther(TL.IObject arg)
     {
-        TL.ReactorError? err;
-        if ((err = arg as TL.ReactorError) is not null)
+
+        switch (arg)
         {
-            _log.Error(message: "Fatal reactor error", exception: err.Exception);
+            case TL.ReactorError err:
+                _log.Error(message: "Fatal reactor error", exception: err.Exception);
             
-            int tryCount = 1;
-            while (true)
-            {
-                _addEntrataRequested = false;
-                _addSpesaRequested = false;
-                _bot.Client.OnOther -= Client_OnOther;
-                _bot.OnMessage -= OnMessage;
-                _bot.OnUpdate -= OnUpdate;
-                _bot.Dispose();
-                _log.Error("Recreating bot client");
-                BotSetup();
-                try
+                int tryCount = 1;
+                while (true)
                 {
-                    _log.Info("Connecting {count}", tryCount);
-                    await Connect();
-                    _log.Info("Connected");
-                    break;
+                    try
+                    {
+                        _ = await DisposeClientAndReconnect(tryCount);
+                        break;
+                    }
+                    catch (SocketException se)
+                    {
+                        _log.Error(se, "Unable to connect, socket exception");
+                        tryCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Error(ex, "Unable to connect telegram bot");
+                        tryCount++;
+                    }
+                    await Task.Delay(5000);
                 }
-                catch (SocketException se)
-                {
-                    _log.Error(se, "Unable to connect, socket exception");
-                    tryCount++;
-                }
-                catch (Exception ex)
-                {
-                    _log.Error(ex, "Unable to connect telegram bot");
-                    tryCount++;
-                }
-                await Task.Delay(5000);
-            }
-        } else if (arg is TL.Pong)
-        {
-            _lastPong = DateTime.Now;
+                break;
+            case TL.Pong _:
+                UpdateLastPong();
+                break;
         }
+    }
+
+    public async Task<bool> DisposeClientAndReconnect(int tryCount)
+    {
+        bool entered = _reconnectionSemaphore.Wait(0);
+        if (!entered)
+        {
+            return false;
+        }
+        try
+        {
+            _addEntrataRequested = false;
+            _addSpesaRequested = false;
+            _bot.Client.OnOther -= Client_OnOther;
+            _bot.OnMessage -= OnMessage;
+            _bot.OnUpdate -= OnUpdate;
+            _bot.Dispose();
+            _log.Error("Recreating bot client");
+            BotSetup();
+            _log.Info("Connecting {count}", tryCount);
+            await Connect();
+            _log.Info("Connected");
+        }
+        finally
+        {
+            _reconnectionSemaphore.Release();
+        }
+
+        return true;
+    }
+
+    private void UpdateLastPong()
+    {
+        Interlocked.Exchange(ref _lastPong, Environment.TickCount64);
+    }
+
+    public long GetLastPong()
+    {
+        return Interlocked.Read(ref _lastPong);
     }
     
     private void OnServiceStopping()
@@ -452,6 +485,7 @@ public class TelegramBotService : IDisposable
         {
             _bot.OnMessage -= OnMessage;
             _bot.Client.OnOther -= Client_OnOther;
+            _bot.OnUpdate -= OnUpdate;
             _wtcLogger?.Dispose();
             Helpers.Log -= WtcLog;
             _bot.Dispose();
