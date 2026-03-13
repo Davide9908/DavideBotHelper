@@ -434,7 +434,7 @@ public class TelegramBotService : IDisposable
                 }
                 break;
             case TL.Pong _:
-                _log.Info("ping-pong");
+                //_log.Info("ping-pong");
                 UpdateLastPong();
                 break;
         }
