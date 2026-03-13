@@ -9,7 +9,7 @@ public class TelegramBotClientCheckerTask : BaseTask
     private readonly ILogger<TelegramBotClientCheckerTask> _log;
     private readonly TelegramBotService _botService;
     
-    private const long TimeoutTicks = 30000;
+    private const long TimeoutTicks = TimeSpan.TicksPerMinute * 5;
     
     public TelegramBotClientCheckerTask(ILogger<TelegramBotClientCheckerTask> log, TelegramBotService botService) : base(log)
     {
@@ -19,6 +19,11 @@ public class TelegramBotClientCheckerTask : BaseTask
 
     protected override async Task Run()
     {
+        var clientStart = _botService.ClientCreatedAt;
+        if (DateTime.UtcNow - clientStart < TimeSpan.FromMinutes(3))
+        {
+            return;
+        }
         long lastUpdateTicks = _botService.GetLastPong();
         long tickFromLastUpdate = Environment.TickCount64 - lastUpdateTicks;
         if (tickFromLastUpdate < TimeoutTicks)

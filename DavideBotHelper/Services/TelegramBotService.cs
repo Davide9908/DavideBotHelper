@@ -31,6 +31,7 @@ public class TelegramBotService : IDisposable
     private long _lastPong;
     private static readonly string[] ValidPrefixes = [WolRequestCallbackPrefix];
     private readonly SemaphoreSlim _reconnectionSemaphore = new SemaphoreSlim(1, 1);
+    public DateTime ClientCreatedAt { get; private set; }
 
     private const string StartComando = "/start";
     private const string AddSpesaComando = "/aggiungispesa";
@@ -87,12 +88,14 @@ public class TelegramBotService : IDisposable
     public async Task Connect()
     {
         UpdateLastPong();
+        ClientCreatedAt = DateTime.UtcNow;
         _ = await _bot.GetMe();
         await _bot.DropPendingUpdates();
     }
 
     private async Task OnUpdate(Update update)
     {
+        UpdateLastPong();
         if (update.CallbackQuery is not null && update.CallbackQuery.Message is not null)
         {
             if (update.CallbackQuery.Data is null)
@@ -131,6 +134,7 @@ public class TelegramBotService : IDisposable
     
     private async Task OnMessage(Message msg, UpdateType type)
     {
+        UpdateLastPong();
         _log.Info("Message {message} received from {username}", msg.Text, msg.From?.Username);
         if (msg.From is null || msg.Text is null || msg.From.Id != 38076310 || msg.From.Username != "DavChi99")
         {
@@ -430,6 +434,7 @@ public class TelegramBotService : IDisposable
                 }
                 break;
             case TL.Pong _:
+                _log.Info("ping-pong");
                 UpdateLastPong();
                 break;
         }

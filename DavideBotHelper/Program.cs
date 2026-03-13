@@ -46,6 +46,7 @@ file static class ServiceExtension
             .AddScoped<ExcelMovimentiService>()
             .AddTransient<PowerAlertTask>()
             .AddScoped<WolProxmoxDevicesUpdaterTask>()
+            .AddScoped<TelegramBotClientCheckerTask>()
             .AddScheduler()
             .AddSerilog( serilogConfig=>
             {

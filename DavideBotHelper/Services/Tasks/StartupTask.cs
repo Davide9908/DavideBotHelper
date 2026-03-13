@@ -88,7 +88,7 @@ public class StartupTask : BaseTask
                         .Cron(Constants.Every6HoursCron)
                         .PreventOverlapping(nameof(WolProxmoxDevicesUpdaterTask));
                     scheduler.Schedule<TelegramBotClientCheckerTask>()
-                        .EverySecond()
+                        .EveryThirtySeconds()
                         .PreventOverlapping(nameof(TelegramBotClientCheckerTask));
                 })
                 .LogScheduledTaskProgress();
