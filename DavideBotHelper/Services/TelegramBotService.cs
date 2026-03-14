@@ -154,10 +154,11 @@ public partial class TelegramBotService : IDisposable
         {
             wolPacket[i] = 0xFF;
         }
-    
+        
+        byte[] addressBytes = address.GetAddressBytes();
         for (int i = 6; i < 102;)
         {
-            foreach (var addressByte in address.GetAddressBytes())
+            foreach (var addressByte in addressBytes)
             {
                 wolPacket[i] = addressByte;
                 i++;
