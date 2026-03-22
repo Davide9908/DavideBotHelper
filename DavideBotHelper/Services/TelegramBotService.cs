@@ -31,6 +31,7 @@ public partial class TelegramBotService : IDisposable
     private long _lastPong;
     private static readonly string[] ValidPrefixes = [WolRequestCallbackPrefix];
     private readonly SemaphoreSlim _reconnectionSemaphore = new SemaphoreSlim(1, 1);
+    private readonly ChatId _mainUserChatId = new(38076310);
     public DateTime ClientCreatedAt { get; private set; }
 
     private const string StartComando = "/start";
@@ -306,6 +307,11 @@ public partial class TelegramBotService : IDisposable
     public async Task<Message> SendMessage(ChatId chat, string message, ReplyParameters? replyParameters = default)
     {
         return await _bot.SendMessage(chat, message, replyParameters:replyParameters);
+    }
+    
+    public async Task<Message> SendMessageToMainUser(string message, ReplyParameters? replyParameters = default)
+    {
+        return await _bot.SendMessage(_mainUserChatId, message, replyParameters:replyParameters);
     }
 
     public async Task<Message> SendDocumentAsync(ChatId chat, Stream content, string filename, string? message = null)

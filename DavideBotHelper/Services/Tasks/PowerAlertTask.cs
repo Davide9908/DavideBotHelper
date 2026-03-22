@@ -15,7 +15,6 @@ public class PowerAlertTask : BaseTask
     
     private readonly ILogger<PowerAlertTask> _log;
     private readonly TelegramBotService _telegramBotService;
-    private readonly ChatId _chatId = new ChatId(38076310);
 
     public PowerAlertTask(ILogger<PowerAlertTask> log, TelegramBotService telegramBotService) : base(log)
     {
@@ -55,13 +54,11 @@ public class PowerAlertTask : BaseTask
                 {
                     if (seconds != 0)
                     {
-                        _ = await _telegramBotService.SendMessage(_chatId,
-                            $"Corrente ripristinata.\nLa mancanza è durata {seconds} secondi");
+                        _ = await _telegramBotService.SendMessageToMainUser($"Corrente ripristinata.\nLa mancanza è durata {seconds} secondi");
                     }
                     else
                     {
-                        _ = await _telegramBotService.SendMessage(_chatId,
-                            $"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti");
+                        _ = await _telegramBotService.SendMessageToMainUser($"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti");
                     }
                 }
                 else
@@ -69,11 +66,11 @@ public class PowerAlertTask : BaseTask
                     
                     if (seconds != 0)
                     {
-                        _ = await _telegramBotService.SendMessage(_chatId, $"Corrente ripristinata.\nLa mancanza è durata {seconds} secondi", PowerAlertFlag.LastAlert);
+                        _ = await _telegramBotService.SendMessageToMainUser($"Corrente ripristinata.\nLa mancanza è durata {seconds} secondi", PowerAlertFlag.LastAlert);
                     }
                     else
                     {
-                        _ = await _telegramBotService.SendMessage(_chatId, $"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti", PowerAlertFlag.LastAlert);
+                        _ = await _telegramBotService.SendMessageToMainUser( $"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti", PowerAlertFlag.LastAlert);
                     }
                     //_ = await _telegramBotService.SendMessage(new ChatId(38076310), $"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti", PowerAlertFlag.LastAlert);
                     //_ = await _telegramBotService.SendMessage(new ChatId(38076310), $"Corrente ripristinata.\nLa mancanza è durata {minutes} minuti");
@@ -88,7 +85,7 @@ public class PowerAlertTask : BaseTask
             {
                 File.WriteAllText(UpsLock, DateTime.Now.Ticks.ToString());
                 PowerAlertFlag.LastAlert =
-                    await _telegramBotService.SendMessage(_chatId, "Rilevata mancanza corrente!");
+                    await _telegramBotService.SendMessageToMainUser("Rilevata mancanza corrente!");
                 PowerAlertFlag.FirstRun = false;
             }
         }
