@@ -351,6 +351,7 @@ public partial class TelegramBotService : IDisposable
 
     private void UpdateLastPong()
     {
+        // _log.Info("Updating last Pong");
         Interlocked.Exchange(ref _lastPong, Environment.TickCount64);
     }
 
