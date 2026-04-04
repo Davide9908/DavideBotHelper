@@ -29,9 +29,11 @@ public class SendReleaseAssetTask : TransactionalTask
         var releasesToSend = await _dbContext.RepositoryReleases.Include(release => release.GithubRepository)
             .Where(release => release.ToSend)
             .ToListAsync(_ct);
+        _log.Info("Found {count} releases to send", releasesToSend.Count);
 
         foreach (RepositoryRelease assetToSend in releasesToSend)
         {
+            _log.Info("Processing release {releaseName}", assetToSend.FileName);
             if (assetToSend.Data == null)
             {
                 _log.Error("Asset data non presente, ma asset settato per essere mandato");
