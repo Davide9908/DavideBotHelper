@@ -258,7 +258,7 @@ public partial class TelegramBotService : IDisposable
             await _bot.SendMessage(request.Chat, $"Non è stato possibile fare il parse del valore {parts[0]}", replyParameters: request.Message);
             return null;
         }
-        string descrizione = parts[1];
+        string descrizione = parts[1].Trim();
 
         int? anno = null;
         int? mese = null;
